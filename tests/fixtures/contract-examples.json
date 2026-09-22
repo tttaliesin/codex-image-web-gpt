@@ -1,0 +1,2278 @@
+{
+  "schema_version": "0.1",
+  "notice": "Synthetic design fixtures, not live requests, files or executed application acceptance tests",
+  "contract_file": "../../packages/contracts/schema.json",
+  "cases": [
+    {
+      "name": "status-empty",
+      "valid": true,
+      "tool": "web_image_status",
+      "direction": "input",
+      "payload": {}
+    },
+    {
+      "name": "status-unverified-not-runtime-evidence",
+      "valid": true,
+      "tool": "web_image_status",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "app_state": "ready",
+          "adapter_version": "fixture-only",
+          "profile": {
+            "profile_id": "aba3ad20-95f3-4ee8-a957-c5e221f09e72",
+            "auth_state": "auth_required",
+            "account_verified_at": null
+          },
+          "queue": {
+            "waiting_count": 0,
+            "active_job_id": null,
+            "dispatch_blocked": true,
+            "reason": "AUTH_REQUIRED"
+          },
+          "active_session": null,
+          "capabilities": {
+            "web_generate": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "web_edit": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "file_attach": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "hidden_execution": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "original_download": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            }
+          },
+          "limits": {
+            "max_inputs": 8,
+            "input_file_bytes": 20971520,
+            "input_total_bytes": 83886080,
+            "prompt_characters": 32768,
+            "max_output_count": 4,
+            "download_file_bytes": 104857600
+          }
+        }
+      }
+    },
+    {
+      "name": "session-create",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "action": "create"
+      }
+    },
+    {
+      "name": "session-show",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "action": "show",
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d"
+      }
+    },
+    {
+      "name": "session-hide",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "action": "hide",
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d"
+      }
+    },
+    {
+      "name": "session-takeover",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "action": "takeover",
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+        "expected_revision": 1
+      }
+    },
+    {
+      "name": "session-release",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "action": "release",
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+        "expected_revision": 1
+      }
+    },
+    {
+      "name": "session-created",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": false,
+          "outcome": "applied",
+          "session": {
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "profile_id": "aba3ad20-95f3-4ee8-a957-c5e221f09e72",
+            "conversation_url": null,
+            "control_owner": "automation",
+            "revision": 1,
+            "window_visible": false,
+            "active_job_id": null
+          }
+        }
+      }
+    },
+    {
+      "name": "document-edit-request",
+      "valid": true,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Projects/game/assets/character.png",
+            "role": "edit_target"
+          },
+          {
+            "path": "C:/Projects/game/assets/pose.png",
+            "role": "reference"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      }
+    },
+    {
+      "name": "document-accepted",
+      "valid": true,
+      "tool": "web_image_submit",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "accepted": true,
+          "deduplicated": false,
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "document-wait-request",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "after_revision": 1,
+        "timeout_ms": 25000
+      }
+    },
+    {
+      "name": "document-idempotency-conflict",
+      "valid": true,
+      "tool": "web_image_submit",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "IDEMPOTENCY_CONFLICT",
+          "message": "The request_id is already associated with another request.",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "generate-defaults",
+      "valid": true,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line."
+      }
+    },
+    {
+      "name": "edit-artifact-followup",
+      "valid": true,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+            "role": "edit_target"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        },
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+        "parent_job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f"
+      }
+    },
+    {
+      "name": "get-job-id",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f"
+      }
+    },
+    {
+      "name": "get-request-id",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d"
+      }
+    },
+    {
+      "name": "wait-immediate",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "after_revision": 1,
+        "timeout_ms": 0
+      }
+    },
+    {
+      "name": "wait-timeout",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          },
+          "events": [],
+          "cursor": 1,
+          "reason": "timeout",
+          "timed_out": true,
+          "resync_required": false
+        }
+      }
+    },
+    {
+      "name": "control-cancel",
+      "valid": true,
+      "tool": "web_image_control",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "expected_revision": 1,
+        "action": "cancel"
+      }
+    },
+    {
+      "name": "control-resume",
+      "valid": true,
+      "tool": "web_image_control",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "expected_revision": 1,
+        "action": "resume"
+      }
+    },
+    {
+      "name": "control-reconcile",
+      "valid": true,
+      "tool": "web_image_control",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "expected_revision": 1,
+        "action": "reconcile"
+      }
+    },
+    {
+      "name": "cancel-before-send",
+      "valid": true,
+      "tool": "web_image_control",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": false,
+          "outcome": "applied",
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "canceled",
+            "phase": "complete",
+            "submission_state": "not_sent",
+            "revision": 2,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "artifacts-request",
+      "valid": true,
+      "tool": "web_image_artifacts",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f"
+      }
+    },
+    {
+      "name": "artifact-original-download-fixture",
+      "valid": true,
+      "tool": "web_image_artifacts",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+          "artifacts": [
+            {
+              "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+              "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+              "ordinal": 1,
+              "path": "C:/BridgeData/artifacts/result.png",
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "mime_type": "image/png",
+              "size_bytes": 123456,
+              "width": 1024,
+              "height": 1536,
+              "has_alpha": true,
+              "has_transparency": false,
+              "verified_at": "2026-09-22T04:00:00Z",
+              "source": {
+                "kind": "chatgpt_download",
+                "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+                "conversation_url": "https://chatgpt.com/c/fixture-conversation",
+                "message_id": null,
+                "downloaded_at": "2026-09-22T04:00:00Z",
+                "web_model_id": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "export-request",
+      "valid": true,
+      "tool": "web_image_export",
+      "direction": "input",
+      "payload": {
+        "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+        "artifact_ids": ["ae878129-fdb4-4c74-8dba-388835a10c4e"],
+        "destination_dir": "C:/Projects/game/generated"
+      }
+    },
+    {
+      "name": "export-durable-copying",
+      "valid": true,
+      "tool": "web_image_export",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": false,
+          "export": {
+            "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+            "destination_dir": "C:/Projects/game/generated",
+            "collision": "version",
+            "revision": 1,
+            "state": "copying",
+            "items": [
+              {
+                "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+                "state": "pending",
+                "path": null,
+                "sha256": null,
+                "error": null
+              }
+            ],
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "export-replay-completed",
+      "valid": true,
+      "tool": "web_image_export",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": true,
+          "export": {
+            "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+            "destination_dir": "C:/Projects/game/generated",
+            "collision": "version",
+            "revision": 2,
+            "state": "succeeded",
+            "items": [
+              {
+                "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+                "state": "exported",
+                "path": "C:/Projects/game/generated/result.png",
+                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "error": null
+              }
+            ],
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "export-partial",
+      "valid": true,
+      "tool": "web_image_export",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": false,
+          "export": {
+            "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+            "destination_dir": "C:/Projects/game/generated",
+            "collision": "version",
+            "revision": 1,
+            "state": "partial",
+            "items": [
+              {
+                "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+                "state": "exported",
+                "path": "C:/Projects/game/generated/result.png",
+                "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                "error": null
+              },
+              {
+                "artifact_id": "cbd7fa2c-cb3f-431b-a30c-875b5d04c281",
+                "state": "failed",
+                "path": null,
+                "sha256": null,
+                "error": {
+                  "code": "DISK_FULL",
+                  "message": "Illustrative contract fixture: DISK_FULL",
+                  "retryable": true,
+                  "next_action": "free_disk"
+                }
+              }
+            ],
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "export-all-failed",
+      "valid": true,
+      "tool": "web_image_export",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": false,
+          "export": {
+            "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+            "destination_dir": "C:/Projects/game/generated",
+            "collision": "version",
+            "revision": 1,
+            "state": "failed",
+            "items": [
+              {
+                "artifact_id": "cbd7fa2c-cb3f-431b-a30c-875b5d04c281",
+                "state": "failed",
+                "path": null,
+                "sha256": null,
+                "error": {
+                  "code": "DISK_FULL",
+                  "message": "Illustrative contract fixture: DISK_FULL",
+                  "retryable": true,
+                  "next_action": "free_disk"
+                }
+              }
+            ],
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-queued",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-running",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "running",
+            "phase": "generate",
+            "submission_state": "confirmed",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-waiting_user",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "waiting_user",
+            "phase": "download",
+            "submission_state": "confirmed",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": true,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": {
+              "code": "DOWNLOAD_FAILED",
+              "message": "Illustrative contract fixture: DOWNLOAD_FAILED",
+              "retryable": true,
+              "next_action": "retry_download"
+            },
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-reconciling",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "reconciling",
+            "phase": "submit",
+            "submission_state": "sending",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-unknown",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "unknown",
+            "phase": "submit",
+            "submission_state": "unknown",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": true,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": {
+              "code": "SUBMISSION_UNKNOWN",
+              "message": "Illustrative contract fixture: SUBMISSION_UNKNOWN",
+              "retryable": false,
+              "next_action": "reconcile"
+            },
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "wait-unknown",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "unknown",
+            "phase": "submit",
+            "submission_state": "unknown",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": true,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": {
+              "code": "SUBMISSION_UNKNOWN",
+              "message": "Illustrative contract fixture: SUBMISSION_UNKNOWN",
+              "retryable": false,
+              "next_action": "reconcile"
+            },
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          },
+          "events": [],
+          "cursor": 3,
+          "reason": "requires_action",
+          "timed_out": false,
+          "resync_required": false
+        }
+      }
+    },
+    {
+      "name": "get-succeeded",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "succeeded",
+            "phase": "complete",
+            "submission_state": "confirmed",
+            "revision": 3,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": ["ae878129-fdb4-4c74-8dba-388835a10c4e"],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "wait-succeeded",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "succeeded",
+            "phase": "complete",
+            "submission_state": "confirmed",
+            "revision": 3,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": ["ae878129-fdb4-4c74-8dba-388835a10c4e"],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          },
+          "events": [],
+          "cursor": 3,
+          "reason": "terminal",
+          "timed_out": false,
+          "resync_required": false
+        }
+      }
+    },
+    {
+      "name": "get-partial",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "partial",
+            "phase": "complete",
+            "submission_state": "confirmed",
+            "revision": 3,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": ["ae878129-fdb4-4c74-8dba-388835a10c4e"],
+            "warnings": [],
+            "error": {
+              "code": "OUTPUT_MISMATCH",
+              "message": "Illustrative contract fixture: OUTPUT_MISMATCH",
+              "retryable": false,
+              "next_action": "get_status"
+            },
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-failed",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "failed",
+            "phase": "complete",
+            "submission_state": "not_sent",
+            "revision": 3,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": {
+              "code": "INPUT_INVALID",
+              "message": "Illustrative contract fixture: INPUT_INVALID",
+              "retryable": false,
+              "next_action": "fix_input"
+            },
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "get-canceled",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "canceled",
+            "phase": "complete",
+            "submission_state": "confirmed",
+            "revision": 3,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "wait-event-resync",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 102,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          },
+          "events": [],
+          "cursor": 102,
+          "reason": "resync_required",
+          "timed_out": false,
+          "resync_required": true
+        }
+      }
+    },
+    {
+      "name": "wait-changed",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "running",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 2,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          },
+          "events": [
+            {
+              "revision": 2,
+              "at": "2026-09-22T04:00:00Z",
+              "kind": "state_changed",
+              "state": "running",
+              "phase": "prepare",
+              "submission_state": "not_sent"
+            }
+          ],
+          "cursor": 2,
+          "reason": "changed",
+          "timed_out": false,
+          "resync_required": false
+        }
+      }
+    },
+    {
+      "name": "response-additive-field",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          },
+          "future_field": 1
+        },
+        "future_envelope": true
+      }
+    },
+    {
+      "name": "error-web_image_status",
+      "valid": true,
+      "tool": "web_image_status",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_session",
+      "valid": true,
+      "tool": "web_image_session",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_submit",
+      "valid": true,
+      "tool": "web_image_submit",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_get",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_wait",
+      "valid": true,
+      "tool": "web_image_wait",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_control",
+      "valid": true,
+      "tool": "web_image_control",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_artifacts",
+      "valid": true,
+      "tool": "web_image_artifacts",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "error-web_image_export",
+      "valid": true,
+      "tool": "web_image_export",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "status-extra-field",
+      "valid": false,
+      "tool": "web_image_status",
+      "direction": "input",
+      "payload": {
+        "unexpected": true
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "edit-missing-target",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "edit-two-targets",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Assets/a.png",
+            "role": "edit_target"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "edit_target"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-two-sources",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Assets/a.png",
+            "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+            "role": "edit_target"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-no-source",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "role": "edit_target"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-relative-path",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "assets/a.png",
+            "role": "edit_target"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-unc-path",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "//server/assets/a.png",
+            "role": "edit_target"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-extra-property",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Projects/game/assets/character.png",
+            "role": "edit_target",
+            "upload_url": "https://example.invalid"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-bad-hash",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Projects/game/assets/character.png",
+            "role": "edit_target",
+            "expected_sha256": "abc"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "edit-no-inputs",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "우주괴수 고양이\nPreserve this exact line."
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "generate-edit-target",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Projects/game/assets/character.png",
+            "role": "edit_target"
+          },
+          {
+            "path": "C:/Projects/game/assets/pose.png",
+            "role": "reference"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "parent-without-session",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "edit",
+        "prompt": "Edit Image 1 directly. Image 2 is only a pose reference. Preserve Image 1 identity, outfit and proportions. Create one right-facing full-body character image on a pure black background, 1024x1536, with no text.",
+        "inputs": [
+          {
+            "path": "C:/Projects/game/assets/character.png",
+            "role": "edit_target"
+          },
+          {
+            "path": "C:/Projects/game/assets/pose.png",
+            "role": "reference"
+          }
+        ],
+        "expected_output": {
+          "count": 1,
+          "width": 1024,
+          "height": 1536,
+          "strict": true
+        },
+        "parent_job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "input-count-nine",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "inputs": [
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          },
+          {
+            "path": "C:/Assets/a.png",
+            "role": "reference"
+          }
+        ]
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "prompt-empty",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": ""
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "output-count-zero",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "expected_output": {
+          "count": 0
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "output-count-five",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "expected_output": {
+          "count": 5
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "dimensions-unpaired",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "expected_output": {
+          "width": 1024
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "strict-wrong-type",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "expected_output": {
+          "strict": "true"
+        }
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "null-not-permitted",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "session_id": null
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "submit-api-fallback-field",
+      "valid": false,
+      "tool": "web_image_submit",
+      "direction": "input",
+      "payload": {
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "mode": "generate",
+        "prompt": "우주괴수 고양이\nPreserve this exact line.",
+        "fallback": "image_gen"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "get-both-identifiers",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "get-neither-identifier",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "input",
+      "payload": {},
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "get-bad-uuid",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "input",
+      "payload": {
+        "job_id": "job-1"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "wait-too-long",
+      "valid": false,
+      "tool": "web_image_wait",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "after_revision": 1,
+        "timeout_ms": 30001
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "wait-negative-cursor",
+      "valid": false,
+      "tool": "web_image_wait",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "after_revision": -1,
+        "timeout_ms": 25000
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "wait-null-timeout",
+      "valid": false,
+      "tool": "web_image_wait",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "after_revision": 1,
+        "timeout_ms": null
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "control-retry-generation",
+      "valid": false,
+      "tool": "web_image_control",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "expected_revision": 1,
+        "action": "retry_generation"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "control-no-revision",
+      "valid": false,
+      "tool": "web_image_control",
+      "direction": "input",
+      "payload": {
+        "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+        "action": "cancel"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "session-takeover-no-revision",
+      "valid": false,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "action": "takeover",
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "session-create-with-target",
+      "valid": false,
+      "tool": "web_image_session",
+      "direction": "input",
+      "payload": {
+        "action": "create",
+        "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+        "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "export-overwrite",
+      "valid": false,
+      "tool": "web_image_export",
+      "direction": "input",
+      "payload": {
+        "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+        "artifact_ids": ["ae878129-fdb4-4c74-8dba-388835a10c4e"],
+        "destination_dir": "C:/Projects/game/generated",
+        "collision": "overwrite"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "export-duplicate-artifacts",
+      "valid": false,
+      "tool": "web_image_export",
+      "direction": "input",
+      "payload": {
+        "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+        "artifact_ids": [
+          "ae878129-fdb4-4c74-8dba-388835a10c4e",
+          "ae878129-fdb4-4c74-8dba-388835a10c4e"
+        ],
+        "destination_dir": "C:/Projects/game/generated"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "export-empty-artifacts",
+      "valid": false,
+      "tool": "web_image_export",
+      "direction": "input",
+      "payload": {
+        "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+        "artifact_ids": [],
+        "destination_dir": "C:/Projects/game/generated"
+      },
+      "reason": "Must be rejected by the declared wire schema"
+    },
+    {
+      "name": "unknown-terminal",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "unknown",
+            "phase": "prepare",
+            "submission_state": "unknown",
+            "revision": 1,
+            "terminal": true,
+            "requires_action": true,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": {
+              "code": "SUBMISSION_UNKNOWN",
+              "message": "Illustrative contract fixture: SUBMISSION_UNKNOWN",
+              "retryable": false,
+              "next_action": "reconcile"
+            },
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "success-without-artifact",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "succeeded",
+            "phase": "complete",
+            "submission_state": "confirmed",
+            "revision": 1,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "queued-remote-running",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": true,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "future-producer-state",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "future_state",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "invalid-date",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-02-30T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "response-wrong-version",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.2",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "preview-not-original",
+      "valid": false,
+      "tool": "web_image_artifacts",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+          "artifacts": [
+            {
+              "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+              "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+              "ordinal": 1,
+              "path": "C:/BridgeData/artifacts/result.png",
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "mime_type": "image/png",
+              "size_bytes": 123456,
+              "width": 1024,
+              "height": 1536,
+              "has_alpha": true,
+              "has_transparency": false,
+              "verified_at": "2026-09-22T04:00:00Z",
+              "source": {
+                "kind": "screenshot",
+                "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+                "conversation_url": "https://chatgpt.com/c/fixture-conversation",
+                "message_id": null,
+                "downloaded_at": "2026-09-22T04:00:00Z",
+                "web_model_id": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "transparency-without-alpha",
+      "valid": false,
+      "tool": "web_image_artifacts",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+          "artifacts": [
+            {
+              "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+              "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+              "ordinal": 1,
+              "path": "C:/BridgeData/artifacts/result.png",
+              "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "mime_type": "image/png",
+              "size_bytes": 123456,
+              "width": 1024,
+              "height": 1536,
+              "has_alpha": false,
+              "has_transparency": true,
+              "verified_at": "2026-09-22T04:00:00Z",
+              "source": {
+                "kind": "chatgpt_download",
+                "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+                "conversation_url": "https://chatgpt.com/c/fixture-conversation",
+                "message_id": null,
+                "downloaded_at": "2026-09-22T04:00:00Z",
+                "web_model_id": null
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "unknown-error-auto-retry",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": false,
+        "error": {
+          "code": "SUBMISSION_UNKNOWN",
+          "message": "Illustrative contract fixture: SUBMISSION_UNKNOWN",
+          "retryable": true,
+          "next_action": "reconcile"
+        }
+      }
+    },
+    {
+      "name": "mixed-success-error-envelope",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "edit",
+            "state": "queued",
+            "phase": "prepare",
+            "submission_state": "not_sent",
+            "revision": 1,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        },
+        "error": {
+          "code": "INPUT_INVALID",
+          "message": "Illustrative contract fixture: INPUT_INVALID",
+          "retryable": false,
+          "next_action": "fix_input"
+        }
+      }
+    },
+    {
+      "name": "export-success-with-pending-item",
+      "valid": false,
+      "tool": "web_image_export",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "deduplicated": false,
+          "export": {
+            "export_id": "cc1687c6-eebe-414b-9690-6a7d4b27c4c8",
+            "destination_dir": "C:/Projects/game/generated",
+            "collision": "version",
+            "revision": 1,
+            "state": "succeeded",
+            "items": [
+              {
+                "artifact_id": "ae878129-fdb4-4c74-8dba-388835a10c4e",
+                "state": "pending",
+                "path": null,
+                "sha256": null,
+                "error": null
+              }
+            ],
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
+      "name": "capability-supported-without-evidence",
+      "valid": false,
+      "tool": "web_image_status",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "app_state": "ready",
+          "adapter_version": "fixture-only",
+          "profile": {
+            "profile_id": "aba3ad20-95f3-4ee8-a957-c5e221f09e72",
+            "auth_state": "auth_required",
+            "account_verified_at": null
+          },
+          "queue": {
+            "waiting_count": 0,
+            "active_job_id": null,
+            "dispatch_blocked": true,
+            "reason": "AUTH_REQUIRED"
+          },
+          "active_session": null,
+          "capabilities": {
+            "web_generate": {
+              "state": "supported",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "web_edit": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "file_attach": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "hidden_execution": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            },
+            "original_download": {
+              "state": "unverified",
+              "verified_at": null,
+              "adapter_version": null,
+              "reason": "M0 not executed"
+            }
+          },
+          "limits": {
+            "max_inputs": 8,
+            "input_file_bytes": 20971520,
+            "input_total_bytes": 83886080,
+            "prompt_characters": 32768,
+            "max_output_count": 4,
+            "download_file_bytes": 104857600
+          }
+        }
+      }
+    }
+  ],
+  "state_scenarios": [
+    {
+      "name": "normal-completion",
+      "states": ["queued", "running", "succeeded"],
+      "valid": true
+    },
+    {
+      "name": "login-recovery",
+      "states": ["queued", "waiting_user", "reconciling", "running", "succeeded"],
+      "valid": true
+    },
+    {
+      "name": "uncertain-submit-reconcile",
+      "states": [
+        "queued",
+        "running",
+        "reconciling",
+        "unknown",
+        "reconciling",
+        "running",
+        "succeeded"
+      ],
+      "valid": true
+    },
+    {
+      "name": "cancel-unknown",
+      "states": ["queued", "running", "reconciling", "unknown", "canceled"],
+      "valid": true
+    },
+    {
+      "name": "download-recovery",
+      "states": ["queued", "running", "waiting_user", "reconciling", "running", "partial"],
+      "valid": true
+    },
+    {
+      "name": "invalid-staged-file",
+      "states": ["queued", "failed"],
+      "valid": true
+    },
+    {
+      "name": "unknown-direct-resend",
+      "states": ["unknown", "running"],
+      "valid": false
+    },
+    {
+      "name": "terminal-reopened",
+      "states": ["succeeded", "running"],
+      "valid": false
+    },
+    {
+      "name": "failed-regenerated",
+      "states": ["failed", "queued"],
+      "valid": false
+    },
+    {
+      "name": "submit-confirmation",
+      "submission_states": ["not_sent", "sending", "confirmed"],
+      "valid": true
+    },
+    {
+      "name": "submit-reconcile-existing",
+      "submission_states": ["not_sent", "sending", "unknown", "confirmed"],
+      "valid": true
+    },
+    {
+      "name": "submit-unknown-reset",
+      "submission_states": ["unknown", "not_sent"],
+      "valid": false
+    }
+  ]
+}

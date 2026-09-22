@@ -1,0 +1,2484 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:web-image-bridge:contracts:0.1",
+  "title": "Web Image Bridge v0.1 contract bundle",
+  "description": "Canonical JSON Schema definitions; the root validates a tool/direction/payload fixture wrapper, not JSON-RPC framing",
+  "type": "object",
+  "required": ["tool", "direction", "payload"],
+  "additionalProperties": false,
+  "properties": {
+    "tool": {
+      "enum": [
+        "web_image_status",
+        "web_image_session",
+        "web_image_submit",
+        "web_image_get",
+        "web_image_wait",
+        "web_image_control",
+        "web_image_artifacts",
+        "web_image_export"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": ["input", "output"]
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_status"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/status_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_status"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/status_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_session"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/session_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_session"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/session_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_submit"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/submit_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_submit"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/submit_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_get"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/get_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_get"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/get_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_wait"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/wait_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_wait"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/wait_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_control"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/control_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_control"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/control_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_artifacts"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/artifacts_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_artifacts"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/artifacts_output"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_export"
+        },
+        "direction": {
+          "const": "input"
+        },
+        "payload": {
+          "$ref": "#/$defs/export_input"
+        }
+      }
+    },
+    {
+      "properties": {
+        "tool": {
+          "const": "web_image_export"
+        },
+        "direction": {
+          "const": "output"
+        },
+        "payload": {
+          "$ref": "#/$defs/export_output"
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "local_path": {
+      "type": "string",
+      "minLength": 4,
+      "pattern": "^[A-Za-z]:[\\\\/][^\\u0000\\r\\n]*$",
+      "description": "Windows drive-absolute syntax only; canonicalization, opened-file identity and allowed roots are application checks"
+    },
+    "conversation_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://chatgpt\\.com/c/[A-Za-z0-9_-]+$"
+    },
+    "job_state": {
+      "type": "string",
+      "enum": [
+        "queued",
+        "running",
+        "waiting_user",
+        "reconciling",
+        "unknown",
+        "succeeded",
+        "partial",
+        "failed",
+        "canceled"
+      ]
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["prepare", "attach", "submit", "generate", "download", "complete"]
+    },
+    "submission_state": {
+      "type": "string",
+      "enum": ["not_sent", "sending", "confirmed", "unknown"]
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["generate", "edit"]
+    },
+    "input_role": {
+      "type": "string",
+      "enum": ["edit_target", "reference", "supporting"]
+    },
+    "capability_state": {
+      "type": "string",
+      "enum": ["unverified", "supported", "unavailable"]
+    },
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "INPUT_NOT_LOCAL",
+        "INPUT_INVALID",
+        "PATH_DENIED",
+        "IDEMPOTENCY_CONFLICT",
+        "REVISION_CONFLICT",
+        "AUTH_REQUIRED",
+        "HUMAN_CHECK_REQUIRED",
+        "UI_CHANGED",
+        "SUBMISSION_UNKNOWN",
+        "RATE_LIMITED",
+        "GENERATION_REJECTED",
+        "DOWNLOAD_FAILED",
+        "OUTPUT_MISMATCH",
+        "DISK_FULL",
+        "ADAPTER_UNAVAILABLE",
+        "NOT_FOUND",
+        "CAPABILITY_UNAVAILABLE",
+        "STATE_CONFLICT",
+        "EXPORT_CONFLICT",
+        "IO_ERROR"
+      ]
+    },
+    "next_action": {
+      "type": "string",
+      "enum": [
+        "none",
+        "fix_input",
+        "get_status",
+        "open_app",
+        "reconcile",
+        "resume",
+        "retry_download",
+        "retry_export",
+        "free_disk",
+        "wait",
+        "update_adapter"
+      ]
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/error_code"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024
+        },
+        "retryable": {
+          "type": "boolean"
+        },
+        "next_action": {
+          "$ref": "#/$defs/next_action"
+        }
+      },
+      "required": ["code", "message", "retryable", "next_action"],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "code": {
+                "enum": ["SUBMISSION_UNKNOWN"]
+              }
+            },
+            "required": ["code"]
+          },
+          "then": {
+            "properties": {
+              "retryable": {
+                "const": false
+              },
+              "next_action": {
+                "const": "reconcile"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "input": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/local_path"
+        },
+        "artifact_id": {
+          "$ref": "#/$defs/id"
+        },
+        "role": {
+          "$ref": "#/$defs/input_role"
+        },
+        "expected_sha256": {
+          "$ref": "#/$defs/sha256"
+        }
+      },
+      "required": ["role"],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["path"],
+          "not": {
+            "anyOf": [
+              {
+                "required": ["artifact_id"]
+              }
+            ]
+          }
+        },
+        {
+          "required": ["artifact_id"],
+          "not": {
+            "anyOf": [
+              {
+                "required": ["path"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "expected_output": {
+      "type": "object",
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4,
+          "default": 1
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "require_alpha": {
+          "type": "boolean",
+          "default": false
+        },
+        "strict": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "width": ["height"],
+        "height": ["width"]
+      }
+    },
+    "session": {
+      "type": "object",
+      "properties": {
+        "session_id": {
+          "$ref": "#/$defs/id"
+        },
+        "profile_id": {
+          "$ref": "#/$defs/id"
+        },
+        "conversation_url": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/conversation_url"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "control_owner": {
+          "type": "string",
+          "enum": ["automation", "manual"]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "window_visible": {
+          "type": "boolean"
+        },
+        "active_job_id": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/id"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "session_id",
+        "profile_id",
+        "conversation_url",
+        "control_owner",
+        "revision",
+        "window_visible",
+        "active_job_id"
+      ],
+      "additionalProperties": true
+    },
+    "job": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/id"
+        },
+        "request_id": {
+          "$ref": "#/$defs/id"
+        },
+        "session_id": {
+          "$ref": "#/$defs/id"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "state": {
+          "$ref": "#/$defs/job_state"
+        },
+        "phase": {
+          "$ref": "#/$defs/phase"
+        },
+        "submission_state": {
+          "$ref": "#/$defs/submission_state"
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terminal": {
+          "type": "boolean"
+        },
+        "requires_action": {
+          "type": "boolean"
+        },
+        "remote_may_continue": {
+          "type": "boolean"
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 0,
+          "maxItems": 4,
+          "uniqueItems": true
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/error"
+          },
+          "minItems": 0
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "job_id",
+        "request_id",
+        "session_id",
+        "mode",
+        "state",
+        "phase",
+        "submission_state",
+        "revision",
+        "terminal",
+        "requires_action",
+        "remote_may_continue",
+        "artifact_ids",
+        "warnings",
+        "error",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["succeeded", "partial", "failed", "canceled"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "terminal": {
+                "const": true
+              },
+              "phase": {
+                "const": "complete"
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "terminal": {
+                "const": false
+              },
+              "phase": {
+                "not": {
+                  "const": "complete"
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["waiting_user", "unknown"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "requires_action": {
+                "const": true
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "requires_action": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["queued"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "phase": {
+                "const": "prepare"
+              },
+              "submission_state": {
+                "const": "not_sent"
+              },
+              "artifact_ids": {
+                "maxItems": 0
+              },
+              "error": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["unknown"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "submission_state": {
+                "enum": ["unknown", "confirmed"]
+              },
+              "remote_may_continue": {
+                "const": true
+              },
+              "error": {
+                "$ref": "#/$defs/error"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["succeeded"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "artifact_ids": {
+                "minItems": 1
+              },
+              "submission_state": {
+                "const": "confirmed"
+              },
+              "error": {
+                "type": "null"
+              },
+              "remote_may_continue": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["partial"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "artifact_ids": {
+                "minItems": 1
+              },
+              "submission_state": {
+                "const": "confirmed"
+              },
+              "error": {
+                "$ref": "#/$defs/error"
+              },
+              "remote_may_continue": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["failed"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "artifact_ids": {
+                "maxItems": 0
+              },
+              "error": {
+                "$ref": "#/$defs/error"
+              },
+              "remote_may_continue": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "submission_state": {
+                "enum": ["not_sent"]
+              }
+            },
+            "required": ["submission_state"]
+          },
+          "then": {
+            "properties": {
+              "remote_may_continue": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "submission_state": {
+                "enum": ["sending", "unknown"]
+              }
+            },
+            "required": ["submission_state"]
+          },
+          "then": {
+            "properties": {
+              "remote_may_continue": {
+                "const": true
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["waiting_user"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "error": {
+                "$ref": "#/$defs/error"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "event": {
+      "type": "object",
+      "properties": {
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "accepted",
+            "state_changed",
+            "phase_changed",
+            "submission_changed",
+            "artifact_added",
+            "warning_added",
+            "error_changed",
+            "control_applied"
+          ]
+        },
+        "state": {
+          "$ref": "#/$defs/job_state"
+        },
+        "phase": {
+          "$ref": "#/$defs/phase"
+        },
+        "submission_state": {
+          "$ref": "#/$defs/submission_state"
+        }
+      },
+      "required": ["revision", "at", "kind", "state", "phase", "submission_state"],
+      "additionalProperties": true
+    },
+    "capability": {
+      "type": "object",
+      "properties": {
+        "state": {
+          "$ref": "#/$defs/capability_state"
+        },
+        "verified_at": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/timestamp"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "adapter_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "reason": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["state", "verified_at", "adapter_version", "reason"],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["supported"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "verified_at": {
+                "$ref": "#/$defs/timestamp"
+              },
+              "adapter_version": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "artifact": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/id"
+        },
+        "job_id": {
+          "$ref": "#/$defs/id"
+        },
+        "ordinal": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 4
+        },
+        "path": {
+          "$ref": "#/$defs/local_path"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "mime_type": {
+          "type": "string",
+          "enum": ["image/png", "image/jpeg", "image/webp"]
+        },
+        "size_bytes": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 104857600
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "has_alpha": {
+          "type": "boolean"
+        },
+        "has_transparency": {
+          "type": "boolean"
+        },
+        "verified_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "const": "chatgpt_download"
+            },
+            "session_id": {
+              "$ref": "#/$defs/id"
+            },
+            "conversation_url": {
+              "$ref": "#/$defs/conversation_url"
+            },
+            "message_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "downloaded_at": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "web_model_id": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": [
+            "kind",
+            "session_id",
+            "conversation_url",
+            "message_id",
+            "downloaded_at",
+            "web_model_id"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "artifact_id",
+        "job_id",
+        "ordinal",
+        "path",
+        "sha256",
+        "mime_type",
+        "size_bytes",
+        "width",
+        "height",
+        "has_alpha",
+        "has_transparency",
+        "verified_at",
+        "source"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "has_transparency": {
+                "enum": [true]
+              }
+            },
+            "required": ["has_transparency"]
+          },
+          "then": {
+            "properties": {
+              "has_alpha": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "export_item": {
+      "type": "object",
+      "properties": {
+        "artifact_id": {
+          "$ref": "#/$defs/id"
+        },
+        "state": {
+          "type": "string",
+          "enum": ["pending", "exported", "failed"]
+        },
+        "path": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/local_path"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/sha256"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": ["artifact_id", "state", "path", "sha256", "error"],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["exported"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "$ref": "#/$defs/local_path"
+              },
+              "sha256": {
+                "$ref": "#/$defs/sha256"
+              },
+              "error": {
+                "type": "null"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["failed"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "type": "null"
+              },
+              "sha256": {
+                "type": "null"
+              },
+              "error": {
+                "$ref": "#/$defs/error"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["pending"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "path": {
+                "type": "null"
+              },
+              "sha256": {
+                "type": "null"
+              },
+              "error": {
+                "type": "null"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "export": {
+      "type": "object",
+      "properties": {
+        "export_id": {
+          "$ref": "#/$defs/id"
+        },
+        "destination_dir": {
+          "$ref": "#/$defs/local_path"
+        },
+        "collision": {
+          "type": "string",
+          "enum": ["version", "error"]
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "state": {
+          "type": "string",
+          "enum": ["copying", "succeeded", "partial", "failed"]
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/export_item"
+          },
+          "minItems": 1,
+          "maxItems": 4
+        },
+        "created_at": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "updated_at": {
+          "$ref": "#/$defs/timestamp"
+        }
+      },
+      "required": [
+        "export_id",
+        "destination_dir",
+        "collision",
+        "revision",
+        "state",
+        "items",
+        "created_at",
+        "updated_at"
+      ],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["succeeded"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "state": {
+                      "const": "exported"
+                    }
+                  },
+                  "required": ["state"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["failed"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "items": {
+                  "properties": {
+                    "state": {
+                      "const": "failed"
+                    }
+                  },
+                  "required": ["state"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["copying"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "contains": {
+                  "properties": {
+                    "state": {
+                      "const": "pending"
+                    }
+                  },
+                  "required": ["state"]
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "state": {
+                "enum": ["partial"]
+              }
+            },
+            "required": ["state"]
+          },
+          "then": {
+            "properties": {
+              "items": {
+                "allOf": [
+                  {
+                    "contains": {
+                      "properties": {
+                        "state": {
+                          "const": "exported"
+                        }
+                      },
+                      "required": ["state"]
+                    }
+                  },
+                  {
+                    "contains": {
+                      "properties": {
+                        "state": {
+                          "const": "failed"
+                        }
+                      },
+                      "required": ["state"]
+                    }
+                  },
+                  {
+                    "not": {
+                      "contains": {
+                        "properties": {
+                          "state": {
+                            "const": "pending"
+                          }
+                        },
+                        "required": ["state"]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    "status_input": {
+      "type": "object",
+      "properties": {},
+      "required": [],
+      "additionalProperties": false
+    },
+    "session_input": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "request_id": {
+              "$ref": "#/$defs/id"
+            },
+            "action": {
+              "const": "create"
+            },
+            "show": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": ["request_id", "action"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "request_id": {
+              "$ref": "#/$defs/id"
+            },
+            "action": {
+              "type": "string",
+              "enum": ["show", "hide"]
+            },
+            "session_id": {
+              "$ref": "#/$defs/id"
+            }
+          },
+          "required": ["request_id", "action", "session_id"],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "request_id": {
+              "$ref": "#/$defs/id"
+            },
+            "action": {
+              "type": "string",
+              "enum": ["takeover", "release"]
+            },
+            "session_id": {
+              "$ref": "#/$defs/id"
+            },
+            "expected_revision": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": ["request_id", "action", "session_id", "expected_revision"],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "submit_input": {
+      "type": "object",
+      "properties": {
+        "request_id": {
+          "$ref": "#/$defs/id"
+        },
+        "mode": {
+          "$ref": "#/$defs/mode"
+        },
+        "prompt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 32768
+        },
+        "inputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/input"
+          },
+          "minItems": 0,
+          "maxItems": 8,
+          "default": []
+        },
+        "expected_output": {
+          "$ref": "#/$defs/expected_output",
+          "default": {
+            "count": 1,
+            "require_alpha": false,
+            "strict": false
+          }
+        },
+        "session_id": {
+          "$ref": "#/$defs/id"
+        },
+        "parent_job_id": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": ["request_id", "mode", "prompt"],
+      "additionalProperties": false,
+      "dependentRequired": {
+        "parent_job_id": ["session_id"]
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "enum": ["edit"]
+              }
+            },
+            "required": ["mode"]
+          },
+          "then": {
+            "required": ["inputs"],
+            "properties": {
+              "inputs": {
+                "minItems": 1,
+                "contains": {
+                  "properties": {
+                    "role": {
+                      "const": "edit_target"
+                    }
+                  },
+                  "required": ["role"]
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "mode": {
+                "enum": ["generate"]
+              }
+            },
+            "required": ["mode"]
+          },
+          "then": {
+            "properties": {
+              "inputs": {
+                "not": {
+                  "contains": {
+                    "properties": {
+                      "role": {
+                        "const": "edit_target"
+                      }
+                    },
+                    "required": ["role"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "get_input": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/id"
+        },
+        "request_id": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": [],
+      "additionalProperties": false,
+      "oneOf": [
+        {
+          "required": ["job_id"],
+          "not": {
+            "anyOf": [
+              {
+                "required": ["request_id"]
+              }
+            ]
+          }
+        },
+        {
+          "required": ["request_id"],
+          "not": {
+            "anyOf": [
+              {
+                "required": ["job_id"]
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "wait_input": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/id"
+        },
+        "after_revision": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 30000,
+          "default": 25000
+        }
+      },
+      "required": ["job_id", "after_revision"],
+      "additionalProperties": false
+    },
+    "control_input": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/id"
+        },
+        "request_id": {
+          "$ref": "#/$defs/id"
+        },
+        "expected_revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action": {
+          "type": "string",
+          "enum": ["cancel", "resume", "reconcile"]
+        }
+      },
+      "required": ["job_id", "request_id", "expected_revision", "action"],
+      "additionalProperties": false
+    },
+    "artifacts_input": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/id"
+        }
+      },
+      "required": ["job_id"],
+      "additionalProperties": false
+    },
+    "export_input": {
+      "type": "object",
+      "properties": {
+        "export_id": {
+          "$ref": "#/$defs/id"
+        },
+        "artifact_ids": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/id"
+          },
+          "minItems": 1,
+          "maxItems": 4,
+          "uniqueItems": true
+        },
+        "destination_dir": {
+          "$ref": "#/$defs/local_path"
+        },
+        "collision": {
+          "type": "string",
+          "enum": ["version", "error"],
+          "default": "version"
+        }
+      },
+      "required": ["export_id", "artifact_ids", "destination_dir"],
+      "additionalProperties": false
+    },
+    "status_data": {
+      "type": "object",
+      "properties": {
+        "app_state": {
+          "type": "string",
+          "enum": ["starting", "ready", "paused", "degraded"]
+        },
+        "adapter_version": {
+          "anyOf": [
+            {
+              "type": "string",
+              "minLength": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "profile": {
+          "type": "object",
+          "properties": {
+            "profile_id": {
+              "$ref": "#/$defs/id"
+            },
+            "auth_state": {
+              "type": "string",
+              "enum": [
+                "unknown",
+                "authenticated",
+                "auth_required",
+                "human_check_required",
+                "account_changed"
+              ]
+            },
+            "account_verified_at": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/timestamp"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": ["profile_id", "auth_state", "account_verified_at"],
+          "additionalProperties": true
+        },
+        "queue": {
+          "type": "object",
+          "properties": {
+            "waiting_count": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "active_job_id": {
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/id"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "dispatch_blocked": {
+              "type": "boolean"
+            },
+            "reason": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "required": ["waiting_count", "active_job_id", "dispatch_blocked", "reason"],
+          "additionalProperties": true
+        },
+        "active_session": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/session"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "web_generate": {
+              "$ref": "#/$defs/capability"
+            },
+            "web_edit": {
+              "$ref": "#/$defs/capability"
+            },
+            "file_attach": {
+              "$ref": "#/$defs/capability"
+            },
+            "hidden_execution": {
+              "$ref": "#/$defs/capability"
+            },
+            "original_download": {
+              "$ref": "#/$defs/capability"
+            }
+          },
+          "required": [
+            "web_generate",
+            "web_edit",
+            "file_attach",
+            "hidden_execution",
+            "original_download"
+          ],
+          "additionalProperties": true
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "max_inputs": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 8
+            },
+            "input_file_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20971520
+            },
+            "input_total_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 83886080
+            },
+            "prompt_characters": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 32768
+            },
+            "max_output_count": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 4
+            },
+            "download_file_bytes": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 104857600
+            }
+          },
+          "required": [
+            "max_inputs",
+            "input_file_bytes",
+            "input_total_bytes",
+            "prompt_characters",
+            "max_output_count",
+            "download_file_bytes"
+          ],
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "app_state",
+        "adapter_version",
+        "profile",
+        "queue",
+        "active_session",
+        "capabilities",
+        "limits"
+      ],
+      "additionalProperties": true
+    },
+    "session_data": {
+      "type": "object",
+      "properties": {
+        "deduplicated": {
+          "type": "boolean"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["applied", "no_change"]
+        },
+        "session": {
+          "$ref": "#/$defs/session"
+        }
+      },
+      "required": ["deduplicated", "outcome", "session"],
+      "additionalProperties": true
+    },
+    "submit_data": {
+      "type": "object",
+      "properties": {
+        "accepted": {
+          "const": true
+        },
+        "deduplicated": {
+          "type": "boolean"
+        },
+        "job": {
+          "$ref": "#/$defs/job"
+        }
+      },
+      "required": ["accepted", "deduplicated", "job"],
+      "additionalProperties": true
+    },
+    "get_data": {
+      "type": "object",
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/job"
+        }
+      },
+      "required": ["job"],
+      "additionalProperties": true
+    },
+    "wait_data": {
+      "type": "object",
+      "properties": {
+        "job": {
+          "$ref": "#/$defs/job"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/event"
+          },
+          "minItems": 0,
+          "maxItems": 100
+        },
+        "cursor": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "type": "string",
+          "enum": ["changed", "terminal", "requires_action", "timeout", "resync_required"]
+        },
+        "timed_out": {
+          "type": "boolean"
+        },
+        "resync_required": {
+          "type": "boolean"
+        }
+      },
+      "required": ["job", "events", "cursor", "reason", "timed_out", "resync_required"],
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "enum": ["timeout"]
+              }
+            },
+            "required": ["reason"]
+          },
+          "then": {
+            "properties": {
+              "timed_out": {
+                "const": true
+              },
+              "events": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "timed_out": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "enum": ["resync_required"]
+              }
+            },
+            "required": ["reason"]
+          },
+          "then": {
+            "properties": {
+              "resync_required": {
+                "const": true
+              },
+              "events": {
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "resync_required": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "enum": ["terminal"]
+              }
+            },
+            "required": ["reason"]
+          },
+          "then": {
+            "properties": {
+              "job": {
+                "properties": {
+                  "terminal": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "reason": {
+                "enum": ["requires_action"]
+              }
+            },
+            "required": ["reason"]
+          },
+          "then": {
+            "properties": {
+              "job": {
+                "properties": {
+                  "requires_action": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "control_data": {
+      "type": "object",
+      "properties": {
+        "deduplicated": {
+          "type": "boolean"
+        },
+        "outcome": {
+          "type": "string",
+          "enum": ["applied", "no_change"]
+        },
+        "job": {
+          "$ref": "#/$defs/job"
+        }
+      },
+      "required": ["deduplicated", "outcome", "job"],
+      "additionalProperties": true
+    },
+    "artifacts_data": {
+      "type": "object",
+      "properties": {
+        "job_id": {
+          "$ref": "#/$defs/id"
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/artifact"
+          },
+          "minItems": 0,
+          "maxItems": 4
+        }
+      },
+      "required": ["job_id", "artifacts"],
+      "additionalProperties": true
+    },
+    "export_data": {
+      "type": "object",
+      "properties": {
+        "deduplicated": {
+          "type": "boolean"
+        },
+        "export": {
+          "$ref": "#/$defs/export"
+        }
+      },
+      "required": ["deduplicated", "export"],
+      "additionalProperties": true
+    },
+    "error_envelope": {
+      "type": "object",
+      "properties": {
+        "schema_version": {
+          "const": "0.1"
+        },
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        }
+      },
+      "required": ["schema_version", "ok", "error"],
+      "additionalProperties": true,
+      "not": {
+        "anyOf": [
+          {
+            "required": ["data"]
+          }
+        ]
+      }
+    },
+    "status_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/status_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "session_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/session_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "submit_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/submit_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "get_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/get_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "wait_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/wait_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "control_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/control_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "artifacts_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/artifacts_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    },
+    "export_output": {
+      "type": "object",
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "schema_version": {
+              "const": "0.1"
+            },
+            "ok": {
+              "const": true
+            },
+            "data": {
+              "$ref": "#/$defs/export_data"
+            }
+          },
+          "required": ["schema_version", "ok", "data"],
+          "additionalProperties": true,
+          "not": {
+            "anyOf": [
+              {
+                "required": ["error"]
+              }
+            ]
+          }
+        },
+        {
+          "$ref": "#/$defs/error_envelope"
+        }
+      ]
+    }
+  },
+  "x-contract-version": "0.1",
+  "x-mcp-tools": [
+    {
+      "name": "web_image_status",
+      "description": "앱·계정·큐·검증된 capability 조회",
+      "input_ref": "#/$defs/status_input",
+      "output_ref": "#/$defs/status_output",
+      "read_only": true
+    },
+    {
+      "name": "web_image_session",
+      "description": "대화 생성·창·조작권 관리",
+      "input_ref": "#/$defs/session_input",
+      "output_ref": "#/$defs/session_output",
+      "read_only": false
+    },
+    {
+      "name": "web_image_submit",
+      "description": "입력 보관과 영속 Job 접수",
+      "input_ref": "#/$defs/submit_input",
+      "output_ref": "#/$defs/submit_output",
+      "read_only": false
+    },
+    {
+      "name": "web_image_get",
+      "description": "ID로 Job snapshot 조회",
+      "input_ref": "#/$defs/get_input",
+      "output_ref": "#/$defs/get_output",
+      "read_only": true
+    },
+    {
+      "name": "web_image_wait",
+      "description": "유한 대기로 Job 변경 확인",
+      "input_ref": "#/$defs/wait_input",
+      "output_ref": "#/$defs/wait_output",
+      "read_only": true
+    },
+    {
+      "name": "web_image_control",
+      "description": "로컬 취소·안전 재개·기존 상태 대조",
+      "input_ref": "#/$defs/control_input",
+      "output_ref": "#/$defs/control_output",
+      "read_only": false
+    },
+    {
+      "name": "web_image_artifacts",
+      "description": "검증된 원본 파일 메타데이터 조회",
+      "input_ref": "#/$defs/artifacts_input",
+      "output_ref": "#/$defs/artifacts_output",
+      "read_only": true
+    },
+    {
+      "name": "web_image_export",
+      "description": "기존 Artifact의 영속 내보내기 접수·조회·재시도",
+      "input_ref": "#/$defs/export_input",
+      "output_ref": "#/$defs/export_output",
+      "read_only": false
+    }
+  ],
+  "x-state-model": {
+    "initial": "queued",
+    "terminal": ["succeeded", "partial", "failed", "canceled"],
+    "transitions": [
+      {
+        "from": "queued",
+        "to": "running"
+      },
+      {
+        "from": "queued",
+        "to": "waiting_user"
+      },
+      {
+        "from": "queued",
+        "to": "failed"
+      },
+      {
+        "from": "queued",
+        "to": "canceled"
+      },
+      {
+        "from": "running",
+        "to": "waiting_user"
+      },
+      {
+        "from": "waiting_user",
+        "to": "reconciling"
+      },
+      {
+        "from": "running",
+        "to": "reconciling"
+      },
+      {
+        "from": "reconciling",
+        "to": "running"
+      },
+      {
+        "from": "reconciling",
+        "to": "waiting_user"
+      },
+      {
+        "from": "reconciling",
+        "to": "unknown"
+      },
+      {
+        "from": "unknown",
+        "to": "reconciling"
+      },
+      {
+        "from": "running",
+        "to": "succeeded"
+      },
+      {
+        "from": "running",
+        "to": "partial"
+      },
+      {
+        "from": "running",
+        "to": "failed"
+      },
+      {
+        "from": "reconciling",
+        "to": "failed"
+      },
+      {
+        "from": "running",
+        "to": "canceled"
+      },
+      {
+        "from": "waiting_user",
+        "to": "canceled"
+      },
+      {
+        "from": "reconciling",
+        "to": "canceled"
+      },
+      {
+        "from": "unknown",
+        "to": "canceled"
+      }
+    ],
+    "submission_transitions": [
+      {
+        "from": "not_sent",
+        "to": "sending"
+      },
+      {
+        "from": "sending",
+        "to": "confirmed"
+      },
+      {
+        "from": "sending",
+        "to": "unknown"
+      },
+      {
+        "from": "unknown",
+        "to": "confirmed"
+      }
+    ],
+    "same_state_update": "Only a meaningful snapshot change increments revision",
+    "unknown_recovery": "No transition to not_sent; reconciliation may only attach existing submission evidence"
+  },
+  "x-policy": {
+    "idempotency_scope": ["installation_id", "tool_name", "request_id_or_export_id"],
+    "tombstone_retention": "No automatic expiry; explicit complete app-data reset breaks historical deduplication",
+    "generation_retry_count": 0,
+    "account_concurrency": 1,
+    "event_limit": 100,
+    "submit_replay": "Return original job_id and current snapshot without re-reading source files",
+    "command_replay": "Return original outcome plus current snapshot; do not reapply effects",
+    "export_replay": "Return current receipt; resume pending or failed copies only, never overwrite or regenerate",
+    "defaults": {
+      "inputs": [],
+      "expected_output": {
+        "count": 1,
+        "require_alpha": false,
+        "strict": false
+      },
+      "session_create_show": false,
+      "wait_timeout_ms": 25000,
+      "collision": "version"
+    },
+    "schema_scope": "Storage identity, allowed roots, same-session lineage, cursor equality and durability require application checks"
+  }
+}

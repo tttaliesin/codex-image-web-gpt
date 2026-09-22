@@ -1,0 +1,11 @@
+interface:
+  display_name: "Web Image Bridge"
+  short_description: "Generate and edit images through the ChatGPT web app"
+  default_prompt: "Use $imagegen to create or edit an image through Web Image Bridge."
+dependencies:
+  tools:
+    - type: "mcp"
+      value: "web_image_bridge"
+      description: "Local Web Image Bridge job and artifact tools"
+policy:
+  allow_implicit_invocation: true

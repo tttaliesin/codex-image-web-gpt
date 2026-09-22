@@ -1,0 +1,55 @@
+# Dependencies and generated build products
+node_modules/
+/dist/
+/coverage/
+.cache/
+.pnpm-store/
+*.tsbuildinfo
+
+# Internal planning, validation evidence and agent instructions stay local
+/docs/
+[Aa][Gg][Ee][Nn][Tt][Ss].[Mm][Dd]
+[Aa][Gg][Ee][Nn][Tt][Ss].override.[Mm][Dd]
+
+# Manual acceptance helpers used only in this local workspace
+/scripts/check-codex.cjs
+/scripts/check-mcp-connection.cjs
+/scripts/mcp-call.cjs
+
+# Local browser sessions, private requests, test evidence and release archives
+/.local/
+/outputs/
+/.tooling-overlay/
+/profile/
+/profiles/
+/artifacts/
+/exports/
+*.sqlite
+*.sqlite-*
+*.db
+*.db-journal
+*.enc
+mcp-config.json
+approved-*.json
+
+# Credentials and machine-specific configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+/.codex/
+/.agents/
+/.idea/
+/.vscode/
+
+# Editor, OS and diagnostic files
+*.log
+*.tmp
+*.bak
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+__pycache__/
+*.pyc

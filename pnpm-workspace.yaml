@@ -1,0 +1,7 @@
+# Runtime and dependency versions are owned by mise.toml and package.json.
+pmOnFail: error
+runtimeOnFail: error
+
+allowBuilds:
+  electron: true
+  sharp: true

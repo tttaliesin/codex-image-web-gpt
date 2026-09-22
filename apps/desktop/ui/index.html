@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self'"
+    />
+    <title>Web Image Bridge</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <svg class="icon-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+      <symbol id="i-image" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="5" />
+        <circle cx="8.5" cy="8.5" r="1.5" />
+        <path d="m3 16 5-5 5 5 3-3 5 5" />
+      </symbol>
+      <symbol id="i-grid" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="2" />
+        <rect x="14" y="3" width="7" height="7" rx="2" />
+        <rect x="3" y="14" width="7" height="7" rx="2" />
+        <rect x="14" y="14" width="7" height="7" rx="2" />
+      </symbol>
+      <symbol id="i-chat" viewBox="0 0 24 24">
+        <path d="M20 11.5a8 8 0 0 1-8 8H4l1-4a8 8 0 1 1 15-4Z" />
+        <path d="M8 9h8M8 13h5" />
+      </symbol>
+      <symbol id="i-settings" viewBox="0 0 24 24">
+        <path d="M4 7h16M4 17h16" />
+        <rect x="7" y="4" width="4" height="6" rx="1" />
+        <rect x="14" y="14" width="4" height="6" rx="1" />
+      </symbol>
+      <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6" /></symbol>
+      <symbol id="i-folder" viewBox="0 0 24 24">
+        <path
+          d="M3 7V5a2 2 0 0 1 2-2h5l3 3h6a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Zm0 1h18"
+        />
+      </symbol>
+      <symbol id="i-hide" viewBox="0 0 24 24">
+        <path d="M4 15v5h16v-5M12 3v12m-4-4 4 4 4-4" />
+      </symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24">
+        <rect x="5" y="10" width="14" height="11" rx="3" />
+        <path d="M8 10V7a4 4 0 0 1 8 0v3m-4 5v2" />
+      </symbol>
+      <symbol id="i-spark" viewBox="0 0 24 24">
+        <path d="m12 3 2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3Z" />
+      </symbol>
+      <symbol id="i-hand" viewBox="0 0 24 24">
+        <path
+          d="M8 12V5a2 2 0 0 1 4 0v6-7a2 2 0 0 1 4 0v7-4a2 2 0 0 1 4 0v9a6 6 0 0 1-6 6h-2c-2 0-3-1-4-3l-4-6a2 2 0 0 1 3-2l3 3"
+        />
+      </symbol>
+    </svg>
+    <div class="titlebar"><span>Web Image Bridge</span></div>
+    <aside class="sidebar" aria-label="앱 탐색">
+      <div class="brand">
+        <div class="brand-mark">
+          <svg><use href="#i-image" /></svg>
+        </div>
+        <div><strong>Web Image Bridge</strong><span>이미지 작업실</span></div>
+      </div>
+      <nav class="navigation">
+        <span class="nav-label">워크스페이스</span>
+        <button class="nav-item active" data-surface="workspace" aria-current="page">
+          <svg><use href="#i-grid" /></svg><span>작업 공간</span>
+        </button>
+        <button class="nav-item" data-surface="browser">
+          <svg><use href="#i-chat" /></svg><span>ChatGPT</span><i id="browser-dot" class="dot"></i>
+        </button>
+        <button class="nav-item" data-surface="settings">
+          <svg><use href="#i-settings" /></svg><span>설정</span>
+        </button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="connection-summary">
+          <i id="connection-dot" class="dot"></i>
+          <div>
+            <strong id="connection-label">연결 확인 중</strong
+            ><span id="connection-caption">잠시만 기다려 주세요</span>
+          </div>
+        </div>
+        <button class="nav-item" data-action="hide">
+          <svg><use href="#i-hide" /></svg><span>트레이로 숨기기</span>
+        </button>
+        <div class="sidebar-footnote">창을 닫아도 작업은 계속됩니다.</div>
+      </div>
+    </aside>
+    <main class="workspace">
+      <header class="workspace-bar">
+        <span id="breadcrumb">작업 공간</span>
+        <div class="bar-actions">
+          <span id="status" class="status-pill" role="status">시작 중</span
+          ><button class="button secondary" data-action="takeover">
+            <svg><use href="#i-hand" /></svg>직접 조작</button
+          ><button class="button primary" data-action="release" hidden>자동화에 반환</button>
+        </div>
+      </header>
+      <section id="workspace-panel" class="panel scroll-panel" aria-labelledby="workspace-heading">
+        <div class="content">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">YOUR IMAGE WORKSPACE</p>
+              <h1 id="workspace-heading">작업 공간</h1>
+              <p>Codex에서 요청하고, 여기서 진행 상황을 확인하세요.</p>
+            </div>
+            <button class="button secondary" data-action="open-results">
+              <svg><use href="#i-folder" /></svg>결과 폴더
+            </button>
+          </div>
+          <section class="current-work" aria-labelledby="current-title">
+            <div class="work-heading">
+              <span class="section-label">현재 작업</span
+              ><span id="work-state" class="subtle-label">대기 중</span>
+            </div>
+            <div class="work-body">
+              <div id="work-symbol" class="work-symbol">
+                <svg><use href="#i-spark" /></svg>
+              </div>
+              <div class="work-copy">
+                <h2 id="current-title">작업실을 준비하고 있어요</h2>
+                <p id="notice">연결 상태를 확인하고 있습니다.</p>
+              </div>
+            </div>
+            <ol class="progress-track" aria-label="작업 진행 단계">
+              <li data-step="prepare"><span>1</span>요청 준비</li>
+              <li data-step="generate"><span>2</span>이미지 생성</li>
+              <li data-step="download"><span>3</span>원본 저장</li>
+            </ol>
+            <div id="operations" class="work-actions" hidden>
+              <div class="queue-controls">
+                <button class="button quiet" data-action="pause-queue">새 작업 일시정지</button
+                ><button class="button quiet" data-action="resume-queue" hidden>새 작업 재개</button
+                ><span id="queue" class="subtle-label" aria-live="polite"></span>
+              </div>
+              <div class="task-actions">
+                <button class="button secondary" data-action="reconcile" hidden>
+                  기존 결과 확인</button
+                ><button class="button secondary" data-action="resume-job" hidden>작업 재개</button
+                ><button class="button danger-quiet" data-action="cancel" hidden>작업 중단</button
+                ><button class="button primary" data-surface="browser">
+                  ChatGPT 열기<svg><use href="#i-arrow" /></svg>
+                </button>
+              </div>
+            </div>
+          </section>
+          <div class="connection-strip">
+            <div><span>Codex 연결</span><strong id="mcp-summary">확인 중</strong></div>
+            <div><span>ChatGPT 세션</span><strong id="session-summary">확인 중</strong></div>
+            <div><span>대기 중인 작업</span><strong id="waiting-summary">—</strong></div>
+          </div>
+          <section class="recent-work" aria-labelledby="recent-heading">
+            <div class="section-heading">
+              <h2 id="recent-heading">최근 작업</h2>
+              <span id="history-count" class="subtle-label"></span>
+            </div>
+            <div id="job-list"></div>
+            <div id="empty-history" class="empty-history">
+              <svg><use href="#i-image" /></svg><strong>첫 이미지를 만들어보세요</strong>
+              <p>Codex에 이미지 생성을 요청하면 작업이 여기에 표시됩니다.</p>
+              <span>예시 요청 · “Web Image Bridge로 두 이미지를 합쳐줘.”</span>
+            </div>
+          </section>
+          <footer class="workspace-note">
+            <svg><use href="#i-lock" /></svg>로그인 세션과 다운로드한 원본은 이 컴퓨터에 보관됩니다.
+          </footer>
+        </div>
+      </section>
+      <section
+        id="browser-panel"
+        class="panel browser-panel"
+        hidden
+        aria-label="ChatGPT 작업 페이지"
+      >
+        <div class="browser-toolbar">
+          <div class="browser-address">
+            <svg><use href="#i-lock" /></svg><span>chatgpt.com</span>
+          </div>
+          <span id="control-label" class="subtle-label">자동화 조작권</span>
+        </div>
+        <div id="browser-viewport">
+          <div class="browser-placeholder">
+            <div class="work-symbol">
+              <svg><use href="#i-spark" /></svg>
+            </div>
+            <h2 id="browser-message">ChatGPT 페이지를 준비하고 있어요</h2>
+            <p id="browser-description">같은 로그인 세션으로 연결합니다.</p>
+          </div>
+        </div>
+        <div class="browser-footer">
+          <i class="dot"></i
+          ><span id="browser-hint">로그인과 직접 확인은 이 페이지에서 진행하세요.</span>
+        </div>
+      </section>
+      <section
+        id="settings-panel"
+        class="panel scroll-panel"
+        hidden
+        aria-labelledby="settings-heading"
+      >
+        <div class="content settings-content">
+          <div class="page-heading">
+            <div>
+              <p class="eyebrow">PREFERENCES</p>
+              <h1 id="settings-heading">설정</h1>
+              <p>Codex 연결과 작업실 운영을 관리하세요.</p>
+            </div>
+          </div>
+          <section class="settings-section">
+            <h2>연결</h2>
+            <div class="setting-row">
+              <div>
+                <strong>Codex MCP</strong>
+                <p id="mcp-endpoint">연결 확인 중</p>
+              </div>
+              <button class="button secondary" data-action="copy-mcp-token">인증 토큰 복사</button>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>ChatGPT</strong>
+                <p id="login-setting">로그인 상태 확인 중</p>
+              </div>
+              <button class="button secondary" data-surface="browser">페이지 열기</button>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>페이지 연결 복구</strong>
+                <p>페이지 제어가 끊겼을 때 기존 세션에 다시 연결합니다.</p>
+              </div>
+              <button class="button secondary" data-action="reconnect">연결 복구</button>
+            </div>
+          </section>
+          <section class="settings-section">
+            <h2>파일 보관</h2>
+            <div class="setting-row">
+              <div>
+                <strong>결과 폴더</strong>
+                <p id="export-location" class="path-value">설정되지 않음</p>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>허용된 입력 폴더</strong>
+                <p id="input-location" class="path-value">설정되지 않음</p>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>로그인과 작업 기록</strong>
+                <p id="profile-location" class="path-value">이 컴퓨터에 보관</p>
+              </div>
+            </div>
+          </section>
+          <section id="legacy-controls" class="settings-section" hidden>
+            <h2>요청 파일</h2>
+            <div class="setting-row">
+              <div>
+                <strong>준비된 요청 실행</strong>
+                <p id="request-description">승인된 요청 JSON 파일을 선택하세요.</p>
+              </div>
+              <div class="setting-actions">
+                <button class="button secondary" data-action="load">파일 열기</button
+                ><button class="button primary" data-action="run">요청 실행</button>
+              </div>
+            </div>
+          </section>
+          <section class="settings-section">
+            <h2>앱 종료</h2>
+            <div class="setting-row">
+              <div>
+                <strong>현재 작업 완료 후 종료</strong>
+                <p>새 요청 접수를 닫고, 진행 중인 작업이 끝나면 종료합니다.</p>
+              </div>
+              <button class="button secondary" data-action="quit-after">완료 후 종료</button>
+            </div>
+            <div class="setting-row">
+              <div>
+                <strong>기록을 저장하고 종료</strong>
+                <p>웹에서 이미 시작된 생성은 계속될 수 있습니다.</p>
+              </div>
+              <button class="button danger-quiet" data-action="quit-now">앱 종료</button>
+            </div>
+          </section>
+          <footer class="workspace-note">Web Image Bridge <span id="app-version"></span></footer>
+        </div>
+      </section>
+      <div id="action-error" class="toast error-toast" role="alert" hidden></div>
+      <div id="action-message" class="toast" role="status" hidden></div>
+    </main>
+    <script src="ui.js"></script>
+  </body>
+</html>

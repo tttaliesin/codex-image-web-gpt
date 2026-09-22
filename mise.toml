@@ -1,0 +1,98 @@
+# Pinned runtimes and project task entry points.
+[tools]
+"node" = "24.21.0"
+"pnpm" = "11.19.0"
+
+[settings]
+experimental = false
+idiomatic_version_file_enable_tools = []
+
+[settings.task]
+run_auto_install = false
+
+[env]
+
+[tasks."default"]
+description = "List available development commands"
+dir = "{{ config_root }}/."
+run = ["mise tasks"]
+
+[tasks."doctor"]
+description = "Inspect selected runtimes without installing or repairing"
+dir = "{{ config_root }}/."
+run = ["mise --version", "mise run doctor:desktop"]
+
+[tasks."doctor:desktop"]
+description = "Inspect desktop"
+dir = "{{ config_root }}/."
+run = ["node --version", "pnpm --version", "node -p process.execPath"]
+
+[tasks."sync:desktop"]
+description = "Synchronize locked dependencies for desktop"
+dir = "{{ config_root }}/."
+run = ["pnpm install --frozen-lockfile"]
+
+[tasks."build:desktop"]
+description = "build desktop"
+dir = "{{ config_root }}/."
+run = ["pnpm run build"]
+
+[tasks."dev:desktop"]
+description = "dev desktop"
+dir = "{{ config_root }}/."
+run = ["pnpm run start"]
+
+[tasks."lint:desktop"]
+description = "lint desktop"
+dir = "{{ config_root }}/."
+run = ["pnpm run typecheck", "pnpm run format:check"]
+
+[tasks."test:desktop"]
+description = "test desktop"
+dir = "{{ config_root }}/."
+run = ["pnpm run test"]
+
+[tasks."sync"]
+description = "sync all applicable modules in order"
+dir = "{{ config_root }}/."
+run = ["mise run sync:desktop"]
+
+[tasks."lint"]
+description = "lint all applicable modules in order"
+dir = "{{ config_root }}/."
+run = ["mise run lint:desktop"]
+
+[tasks."test"]
+description = "test all applicable modules in order"
+dir = "{{ config_root }}/."
+run = ["mise run test:desktop"]
+
+[tasks."build"]
+description = "build all applicable modules in order"
+dir = "{{ config_root }}/."
+run = ["mise run build:desktop"]
+
+[tasks."check"]
+description = "Run declared checks in order; stop on failure; no dependency installation"
+dir = "{{ config_root }}/."
+run = ["mise run lint", "mise run test", "mise run build"]
+
+[tasks."test:integration"]
+description = "Run local Electron fixture and process-restart checks"
+run = "pnpm run test:electron"
+
+[tasks."dev:fixture"]
+description = "Open the isolated local fixture app"
+run = "pnpm run fixture"
+
+[tasks."test:recovery"]
+description = "Run isolated Electron process-crash and download-shutdown recovery checks"
+run = "pnpm run test:recovery"
+
+[tasks."package:windows"]
+description = "Build a Windows x64 portable installer archive without private profiles"
+run = "pnpm run package:windows"
+
+[tasks."check:public"]
+description = "Check Git publication candidates without reading private ignored data"
+run = "pnpm run check:public"

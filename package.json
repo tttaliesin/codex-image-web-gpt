@@ -1,0 +1,52 @@
+{
+  "name": "web-image-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "main": "dist/apps/desktop/src/entry.js",
+  "files": [
+    "dist/apps",
+    "dist/packages",
+    "apps/desktop/ui",
+    "packages/contracts/schema.json",
+    "skills/imagegen",
+    "scripts/install.cjs",
+    "scripts/lib/installation.cjs",
+    "scripts/windows"
+  ],
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=24.21.0 <25"
+  },
+  "scripts": {
+    "build": "node scripts/generate-contracts.cjs --check && tsc",
+    "typecheck": "node scripts/generate-contracts.cjs --check && tsc --noEmit",
+    "format": "prettier --write apps packages scripts tests package.json tsconfig.json .prettierrc.json examples",
+    "format:check": "prettier --check apps packages scripts tests package.json tsconfig.json .prettierrc.json examples",
+    "check:public": "node scripts/check-public-files.cjs",
+    "contracts:generate": "node scripts/generate-contracts.cjs",
+    "test": "pnpm run build && node --test dist/tests/unit/*.test.js tests/*.test.cjs",
+    "test:electron": "pnpm run build && node scripts/test-electron.cjs",
+    "test:recovery": "pnpm run build && node scripts/test-recovery.cjs",
+    "package:windows": "pnpm run build && node scripts/package-windows.cjs",
+    "start": "pnpm run build && node scripts/run-electron.cjs",
+    "fixture": "pnpm run build && node scripts/run-electron.cjs --fixture"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/client": "2.0.0",
+    "@modelcontextprotocol/core": "2.0.0",
+    "@modelcontextprotocol/node": "2.0.0",
+    "@modelcontextprotocol/server": "2.0.0",
+    "ajv": "8.20.0",
+    "ajv-formats": "3.0.1",
+    "sharp": "0.35.4",
+    "smol-toml": "1.8.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.6",
+    "electron": "44.4.3",
+    "json-schema-to-typescript": "15.0.4",
+    "prettier": "3.9.8",
+    "typescript": "6.0.3"
+  }
+}

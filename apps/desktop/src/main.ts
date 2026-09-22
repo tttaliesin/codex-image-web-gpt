@@ -1,0 +1,573 @@
+import {
+  app,
+  BrowserWindow,
+  WebContentsView,
+  session,
+  Tray,
+  Menu,
+  nativeImage,
+  dialog,
+  powerMonitor,
+  shell,
+} from 'electron';
+import path from 'node:path';
+import { mkdir } from 'node:fs/promises';
+import { Cdp, until } from '../../../packages/browser/src/cdp';
+import {
+  PageAdapter,
+  chatgptSelectors,
+  fixtureSelectors,
+} from '../../../packages/browser/src/adapter';
+import { allowedNavigation, conversationUrl } from '../../../packages/browser/src/policy';
+import { DownloadCollector } from '../../../packages/browser/src/download';
+import {
+  ProbeRunner,
+  safeError,
+  validateRequest,
+  type ProbeRequest,
+  type ProbeRecord,
+} from './probe';
+import { durableJson, readJson } from '../../../packages/storage/src/files';
+import { hostMcp, type McpConfiguration } from './mcp-host';
+import { BrowserExecution } from '../../../packages/browser/src/execution';
+import { executionVisibility } from './execution-view';
+import { Operations } from './operations';
+import { bindPower } from './power';
+import { DesktopSurface } from './desktop-surface';
+import { handleDesktopCommand } from './ipc';
+import { loadPageDocument } from './page-navigation';
+import { observePage, pageStatus as observedPageStatus, type PageStatus } from './page-observer';
+
+const root = path.resolve(__dirname, '../../../..');
+const argument = (name: string) => {
+  const index = process.argv.indexOf(name);
+  return index < 0 ? undefined : process.argv[index + 1];
+};
+const operationsTesting = process.argv.includes('--operations-test');
+const testing = process.argv.includes('--self-test') || operationsTesting;
+const fixtureMode = testing || process.argv.includes('--fixture');
+const profile = path.resolve(
+  argument('--profile') ?? path.join(root, '.local', fixtureMode ? 'fixture-profile' : 'profile'),
+);
+app.setName('Web Image Bridge');
+app.setPath('userData', path.resolve(profile));
+let window: BrowserWindow | undefined;
+let tray: Tray | undefined;
+let quitting = false;
+let phase = 'ready';
+let request: ProbeRequest | undefined;
+let runner: ProbeRunner | undefined;
+let fixture:
+  Awaited<ReturnType<typeof import('../../../tests/fixtures/server').fixtureServer>> | undefined;
+let desktop: DesktopSurface | undefined;
+let preparingPage = false;
+let runPrepared: (() => void) | undefined;
+let mcp: Awaited<ReturnType<typeof hostMcp>> | undefined;
+let webExecution: BrowserExecution | undefined;
+let operations: Operations | undefined;
+let refreshTray: (() => void) | undefined;
+let closingMcp = false;
+let pageStatus: PageStatus = 'loading';
+let configuration: McpConfiguration | undefined;
+const isBusy = () => !!runner?.busy || preparingPage || !!webExecution?.busy;
+const syncPageVisibility = () => desktop?.syncVisibility();
+const show = () => desktop?.show();
+const showBrowser = () => desktop?.show(true);
+const validationFile = argument('--mcp-validation-file');
+const validationId = argument('--mcp-validation-id');
+const ownsLock = app.requestSingleInstanceLock({
+  validation: validationFile ? { file: path.resolve(validationFile), id: validationId } : null,
+});
+if (!ownsLock) app.quit();
+app.on('second-instance', (_event, argv, _cwd, additionalData) => {
+  const validation = (
+    additionalData as { validation?: { file?: unknown; id?: unknown } } | undefined
+  )?.validation;
+  if (validation) {
+    void Promise.resolve()
+      .then(async () => {
+        if (!mcp || typeof validation.file !== 'string' || typeof validation.id !== 'string')
+          throw Error('MCP_VALIDATION_UNAVAILABLE');
+        await mcp.validate(validation.file, validation.id);
+      })
+      .catch(() => status('MCP_VALIDATION_FAILED'));
+    return;
+  }
+  if (argv.includes('--run-approved')) runPrepared?.();
+  else show();
+});
+app.on('before-quit', (event) => {
+  quitting = true;
+  if (mcp && !closingMcp) {
+    event.preventDefault();
+    closingMcp = true;
+    void mcp.close().finally(() => {
+      mcp = undefined;
+      app.quit();
+    });
+  }
+});
+app.on('window-all-closed', () => {
+  /* tray owns app lifetime */
+});
+app.on('will-quit', () => {
+  fixture?.close();
+  tray?.destroy();
+});
+
+function status(value: string) {
+  phase = value;
+  syncPageVisibility();
+  tray?.setToolTip(`Web Image Bridge: ${value}`);
+  refreshTray?.();
+  void durableJson(path.join(profile, 'status.json'), {
+    phase,
+    busy: !!runner?.busy || !!webExecution?.busy,
+    at: new Date().toISOString(),
+  }).catch(() => {});
+}
+
+async function start() {
+  await app.whenReady();
+  await mkdir(profile, { recursive: true });
+  if (fixtureMode) {
+    if (app.isPackaged) throw Error('DEVELOPMENT_MODE_REQUIRES_SOURCE');
+    const { fixtureServer } =
+      require('../../../tests/fixtures/server') as typeof import('../../../tests/fixtures/server');
+    fixture = await fixtureServer(path.join(profile, 'fixture-files'));
+  }
+  const partition = session.fromPartition('persist:web-image-primary');
+  partition.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
+  partition.setPermissionCheckHandler(() => false);
+  partition.on('will-download', (event) => {
+    if (!runner?.downloads.armed) event.preventDefault();
+  });
+  window = new BrowserWindow({
+    width: 1360,
+    height: 900,
+    minWidth: 980,
+    minHeight: 680,
+    show: false,
+    title: 'Web Image Bridge',
+    icon: path.join(root, 'apps/desktop/ui/icon.png'),
+    backgroundColor: '#181818',
+    titleBarStyle: 'hidden',
+    titleBarOverlay: { color: '#212121', symbolColor: '#b0b0b0', height: 38 },
+    webPreferences: {
+      preload: path.join(__dirname, 'preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+    },
+  });
+  window.removeMenu();
+  window.center();
+  const view = new WebContentsView({
+    webPreferences: {
+      session: partition,
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true,
+      webSecurity: true,
+      backgroundThrottling: false,
+    },
+  });
+  window.contentView.addChildView(view);
+  desktop = new DesktopSurface(window, view, isBusy);
+  window.on('close', (event) => {
+    if (!quitting) {
+      event.preventDefault();
+      window!.hide();
+    }
+  });
+  window.on('closed', () => {
+    if (!view.webContents.isDestroyed()) view.webContents.close();
+  });
+  view.webContents.setZoomFactor(1);
+  const guard = (contents: Electron.WebContents) => {
+    contents.on('will-navigate', (event, url) => {
+      if (!allowedNavigation(url, fixture?.origin)) event.preventDefault();
+    });
+    contents.on('will-redirect', (event, url) => {
+      if (!allowedNavigation(url, fixture?.origin)) event.preventDefault();
+    });
+    contents.on('will-attach-webview', (event) => event.preventDefault());
+    contents.setWindowOpenHandler(({ url }) => {
+      if (!allowedNavigation(url, fixture?.origin)) return { action: 'deny' };
+      return {
+        action: 'allow',
+        overrideBrowserWindowOptions: {
+          parent: window,
+          autoHideMenuBar: true,
+          webPreferences: {
+            session: partition,
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+            webSecurity: true,
+          },
+        },
+      };
+    });
+    contents.on('did-create-window', (popup) => {
+      guard(popup.webContents);
+      popup.setMenu(null);
+    });
+  };
+  guard(view.webContents);
+  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.on('will-navigate', (event) => event.preventDefault());
+  const icon = nativeImage
+    .createFromPath(path.join(root, 'apps/desktop/ui/icon.png'))
+    .resize({ width: 20, height: 20 });
+  tray = new Tray(icon);
+  tray.setToolTip('Web Image Bridge');
+  tray.setContextMenu(
+    Menu.buildFromTemplate([
+      { label: '창 열기', click: show },
+      { label: '창 숨기기', click: () => window!.hide() },
+      { type: 'separator' },
+      {
+        label: '앱 종료',
+        click: () => {
+          app.quit();
+        },
+      },
+    ]),
+  );
+  tray.on('double-click', show);
+  let traySignature = '';
+  refreshTray = () => {
+    if (!operations) return;
+    const snapshot = operations.snapshot();
+    const label = `${phase} · 대기 ${snapshot.waiting_count}건${snapshot.job?.requires_action ? ' · 확인 필요' : ''}${snapshot.paused ? ' · 새 작업 정지' : ''}${snapshot.draining ? ' · 완료 후 종료' : ''}`;
+    if (label === traySignature) return;
+    traySignature = label;
+    const invoke = (action: string) => {
+      void operations!.command(action).catch((error) => status(safeError(error)));
+    };
+    tray!.setToolTip(`Web Image Bridge: ${label}`.slice(0, 127));
+    tray!.setContextMenu(
+      Menu.buildFromTemplate([
+        { label, enabled: false },
+        { label: '창 열기', click: show },
+        { label: '창 숨기기', click: () => window!.hide() },
+        { type: 'separator' },
+        {
+          label: snapshot.paused ? '새 작업 시작 재개' : '새 작업 시작 일시정지',
+          enabled: !snapshot.draining,
+          click: () => invoke(snapshot.paused ? 'resume-queue' : 'pause-queue'),
+        },
+        {
+          label: '현재 작업 완료 후 종료',
+          enabled: !snapshot.draining,
+          click: () => invoke('quit-after'),
+        },
+        { label: '기록 저장 후 즉시 종료', click: () => invoke('quit-now') },
+      ]),
+    );
+  };
+  const cdp = new Cdp(view.webContents);
+  const adapter = new PageAdapter(
+    cdp,
+    fixtureMode ? fixtureSelectors : chatgptSelectors,
+    fixture?.origin,
+  );
+  const downloads = new DownloadCollector(partition, view.webContents, fixture?.origin);
+  runner = new ProbeRunner(path.join(profile, 'probes'), adapter, downloads, status);
+  const mcpConfiguration = argument('--mcp-config');
+  cdp.contents.debugger.on('detach', () => {
+    if (!quitting) {
+      status('ADAPTER_UNAVAILABLE');
+      void operations?.suspend('ADAPTER_UNAVAILABLE');
+    }
+  });
+  const requestFile = argument('--request');
+  if (requestFile) {
+    request = await readJson(requestFile);
+    validateRequest(request);
+  }
+  runPrepared = () => {
+    if (!request || runner!.busy || preparingPage || webExecution) return;
+    preparingPage = true;
+    cdp.connect();
+    window!.hide();
+    const approved = request;
+    void until(
+      () => adapter.snapshot(),
+      (value) => value.composer === 1 && !value.login && !value.challenge,
+      30000,
+    )
+      .then(() => runner!.run(approved, () => window!.hide()))
+      .catch((error) => {
+        status(safeError(error));
+        showBrowser();
+      })
+      .finally(() => {
+        preparingPage = false;
+        syncPageVisibility();
+        status(phase);
+      });
+  };
+  handleDesktopCommand(window, 'bridge:status', () => {
+    return {
+      phase,
+      surface: desktop!.selected,
+      page_status: pageStatus,
+      mcp_enabled: !!mcp,
+      web_execution: !!webExecution,
+      operations: operations?.snapshot() ?? null,
+      busy: isBusy(),
+      recent_jobs: (mcp?.service.engine.jobs() ?? [])
+        .slice(-8)
+        .reverse()
+        .map(({ snapshot: job }) => ({
+          job_id: job.job_id,
+          mode: job.mode,
+          state: job.state,
+          requires_action: job.requires_action,
+          created_at: job.created_at,
+          artifact_count: job.artifact_ids.length,
+        })),
+      settings: {
+        mcp_endpoint: mcp?.url ?? null,
+        input_roots: configuration?.input_roots ?? [],
+        export_roots: configuration?.export_roots ?? [],
+        profile,
+        version: app.getVersion(),
+      },
+      request: request ? { id: request.id, input_count: request.inputs.length } : null,
+    };
+  });
+  handleDesktopCommand(window, 'bridge:surface', (selected: string) => desktop!.select(selected));
+  handleDesktopCommand(window, 'bridge:viewport', (bounds: Electron.Rectangle) =>
+    desktop!.viewport(bounds),
+  );
+  handleDesktopCommand(
+    window,
+    'bridge:action',
+    async (action: string, expected?: ReturnType<Operations['snapshot']>) => {
+      if (action === 'hide') {
+        window!.hide();
+        return;
+      }
+      if (action === 'copy-mcp-token') {
+        if (mcp) mcp.copyToken();
+        else throw Error('MCP_NOT_ENABLED');
+        return;
+      }
+      if (action === 'open-results') {
+        const destination = configuration?.export_roots[0];
+        if (!destination || (await shell.openPath(destination))) throw Error('PATH_DENIED');
+        return;
+      }
+      if (
+        operations &&
+        [
+          'pause-queue',
+          'resume-queue',
+          'takeover',
+          'release',
+          'cancel',
+          'resume-job',
+          'reconcile',
+          'quit-after',
+          'quit-now',
+          'reconnect',
+        ].includes(action)
+      ) {
+        try {
+          if (action === 'reconnect') {
+            cdp.connect();
+            await operations.resume('ADAPTER_UNAVAILABLE');
+            if (!webExecution?.busy) status('ready');
+          } else await operations.command(action, expected);
+          refreshTray?.();
+        } catch (error) {
+          status(safeError(error));
+          throw Error(safeError(error));
+        }
+        return;
+      }
+      if (runner!.busy || preparingPage || webExecution) return;
+      try {
+        if (action === 'load') {
+          const picked = await dialog.showOpenDialog(window!, {
+            properties: ['openFile'],
+            filters: [{ name: '승인된 M0 요청', extensions: ['json'] }],
+          });
+          if (!picked.canceled) {
+            const value = await readJson(picked.filePaths[0]!);
+            validateRequest(value);
+            request = value;
+            status('ready');
+          }
+        } else if (action === 'run' && request) {
+          runPrepared!();
+        }
+      } catch (error) {
+        status(safeError(error));
+      }
+    },
+  );
+  await window.loadFile(path.join(root, 'apps/desktop/ui/index.html'));
+  if (!testing) show();
+  let startUrl = fixture?.origin ?? 'https://chatgpt.com/';
+  if (request && !fixtureMode) {
+    const saved = await readJson<ProbeRecord>(
+      path.join(profile, 'probes', request.id, 'probe.json'),
+    ).catch(() => undefined);
+    if (
+      saved?.conversation_url &&
+      conversationUrl(saved.conversation_url) &&
+      JSON.stringify(saved.request) === JSON.stringify(request)
+    )
+      startUrl = saved.conversation_url;
+    else if (request.parent_id) {
+      const parent = await readJson<ProbeRecord>(
+        path.join(profile, 'probes', request.parent_id, 'probe.json'),
+      );
+      if (!parent.artifact || !parent.conversation_url || !conversationUrl(parent.conversation_url))
+        throw Error('PARENT_MISMATCH');
+      startUrl = parent.conversation_url;
+    }
+  }
+  if (!(await loadPageDocument(view.webContents, startUrl))) status('PAGE_LOAD_FAILED');
+  cdp.connect();
+  const initialPage = await adapter.snapshot().catch(() => null);
+  pageStatus = observedPageStatus(initialPage);
+  if (mcpConfiguration) {
+    configuration = await readJson<McpConfiguration>(mcpConfiguration);
+    if (configuration.web_execution) {
+      if (request) throw Error('STATE_CONFLICT');
+      webExecution = new BrowserExecution(adapter, downloads, {
+        directory: path.join(profile, 'm1'),
+        busy: (active) => {
+          executionVisibility(window!, view)(active);
+          status(phase);
+        },
+        attention: (code) => {
+          status(code);
+          showBrowser();
+        },
+        hidden: () => !window!.isVisible(),
+        fixtureEntry: fixture ? `${fixture.origin}/?engine=1` : undefined,
+      });
+      await webExecution.restoreCapabilities();
+    }
+    mcp = await hostMcp(
+      path.join(profile, 'm1'),
+      configuration,
+      {
+        setVisible: async (visible, selected) => {
+          if (
+            visible &&
+            selected?.conversation_url &&
+            !webExecution?.busy &&
+            view.webContents.getURL() !== selected.conversation_url
+          )
+            await view.webContents.loadURL(
+              fixture
+                ? selected.conversation_url.replace('https://chatgpt.com', fixture.origin)
+                : selected.conversation_url,
+            );
+          if (visible) showBrowser();
+          else window!.hide();
+        },
+        setManual: async (manual, selected) => {
+          if (runner?.busy || preparingPage || webExecution?.busy) throw Error('STATE_CONFLICT');
+          if (manual) {
+            const destination = selected?.conversation_url
+              ? fixture
+                ? selected.conversation_url.replace('https://chatgpt.com', fixture.origin)
+                : selected.conversation_url
+              : !mcp?.service.engine.active()
+                ? (fixture?.origin ?? 'https://chatgpt.com/')
+                : null;
+            if (destination && view.webContents.getURL() !== destination)
+              await view.webContents.loadURL(destination);
+            showBrowser();
+          } else window!.hide();
+        },
+      },
+      webExecution,
+    );
+    mcp.service.engine.changes.on('changed', (id: string) => {
+      const job = mcp!.service.engine.job(id).snapshot;
+      status(job.error?.code ?? (job.terminal ? job.state : job.phase));
+      void operations?.checkDrain();
+    });
+    operations = new Operations(mcp.service, () => app.quit());
+    const restoredManual = operations.snapshot().session;
+    if (restoredManual?.control_owner === 'manual' && restoredManual.conversation_url) {
+      desktop.select('browser');
+      await view.webContents.loadURL(
+        fixture
+          ? restoredManual.conversation_url.replace('https://chatgpt.com', fixture.origin)
+          : restoredManual.conversation_url,
+      );
+    }
+    mcp.service.engine.changes.on('operations', () => refreshTray?.());
+    const unbindPower = bindPower(powerMonitor, operations);
+    app.once('will-quit', unbindPower);
+    refreshTray();
+  }
+  if (testing) {
+    try {
+      if (operationsTesting) {
+        const { operationsSelfTest } =
+          require('../../../tests/electron/operations-self-test') as typeof import('../../../tests/electron/operations-self-test');
+        if (!mcp) throw Error('MCP_NOT_ENABLED');
+        await operationsSelfTest(window, tray, mcp.service, profile, view);
+        await mcp.close();
+        mcp = undefined;
+      } else {
+        const { selfTest } =
+          require('../../../tests/electron/self-test') as typeof import('../../../tests/electron/self-test');
+        await selfTest({
+          window,
+          view,
+          tray,
+          runner,
+          cdp,
+          fixture: fixture!,
+          profile,
+          stage: argument('--stage') ?? 'first',
+        });
+      }
+      console.log(JSON.stringify({ result: 'passed', stage: argument('--stage') ?? 'first' }));
+      quitting = true;
+      app.exit(0);
+    } catch (error) {
+      console.error(error);
+      quitting = true;
+      app.exit(1);
+    }
+  } else {
+    if (!webExecution?.busy) show();
+    const stopObserving = await observePage({
+      adapter,
+      cdp,
+      profile,
+      execution: webExecution,
+      operations,
+      diagnostics: process.argv.includes('--diagnostics'),
+      busy: isBusy,
+      phase: () => phase,
+      status,
+      pageStatus: (value) => {
+        pageStatus = value;
+      },
+      refreshTray: () => refreshTray?.(),
+    });
+    app.once('before-quit', stopObserving);
+    if (process.argv.includes('--run-approved')) runPrepared();
+  }
+}
+if (ownsLock && validationFile)
+  app.exit(2); // Validation only targets an already running owner.
+else if (ownsLock)
+  void start().catch((error) => {
+    console.error(safeError(error));
+    app.exit(1);
+  });

@@ -1,0 +1,8 @@
+node_modules
+dist
+.local
+outputs
+.tooling-overlay
+packages/contracts/src/generated.ts
+pnpm-lock.yaml
+mise.lock

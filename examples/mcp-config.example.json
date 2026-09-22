@@ -1,0 +1,6 @@
+{
+  "input_roots": ["C:/WebImageBridge/inputs"],
+  "export_roots": ["C:/WebImageBridge/outputs"],
+  "port": 43179,
+  "web_execution": true
+}
