@@ -49,6 +49,27 @@ export class BridgeService {
   readonly profileId: string;
   private readonly inputs: Roots;
   private accepting = true;
+  private configuring = false;
+  async configureFolders(
+    inputRoots: string[],
+    exportRoots: string[],
+    persist: () => Promise<void>,
+  ) {
+    if (this.configuring) throw new Fault('STATE_CONFLICT');
+    this.configuring = true;
+    try {
+      return await this.engine.serial.run(async () => {
+        if (!this.accepting || this.engine.jobs().some((job) => !job.snapshot.terminal))
+          throw new Fault('STATE_CONFLICT');
+        await this.exporter.idle();
+        await persist();
+        this.options.inputRoots.splice(0, this.options.inputRoots.length, ...inputRoots);
+        this.options.exportRoots.splice(0, this.options.exportRoots.length, ...exportRoots);
+      });
+    } finally {
+      this.configuring = false;
+    }
+  }
   draining = false;
   prepareShutdown() {
     this.accepting = false;
@@ -90,6 +111,13 @@ export class BridgeService {
   async call(name: string, value: unknown): Promise<Record<string, unknown>> {
     try {
       await this.ready;
+      if (
+        this.configuring &&
+        ['web_image_submit', 'web_image_export', 'web_image_control', 'web_image_session'].includes(
+          name,
+        )
+      )
+        throw new Fault('STATE_CONFLICT', 'wait');
       if (!validTool(name, 'input', value)) throw new Fault('INPUT_INVALID');
       let data: unknown;
       switch (name) {

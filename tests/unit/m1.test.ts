@@ -59,6 +59,45 @@ const submit = (file?: string) => ({
   ...(file ? { inputs: [{ path: file, role: 'reference' }] } : {}),
 });
 
+test('folder permissions change atomically and block new work during persistence', async () => {
+  const { service, file, inputs, outputs } = await setup();
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    await assert.rejects(
+      service.configureFolders([], [], async () => {
+        throw Error('disk unavailable');
+      }),
+      /disk unavailable/,
+    );
+    assert.deepEqual(service.options.inputRoots, [inputs]);
+    assert.deepEqual(service.options.exportRoots, [outputs]);
+    const changing = service.configureFolders([], [outputs], () => barrier);
+    await error(service, 'submit', submit(file), 'STATE_CONFLICT');
+    await ok(service, 'status', {});
+    await assert.rejects(service.configureFolders([], [], async () => {}));
+    release();
+    await changing;
+    await error(service, 'submit', submit(file), 'PATH_DENIED');
+    assert.deepEqual(service.options.exportRoots, [outputs]);
+    await ok(service, 'submit', submit());
+    let persisted = false;
+    await assert.rejects(
+      service.configureFolders([inputs], [], async () => {
+        persisted = true;
+      }),
+    );
+    assert.equal(persisted, false);
+    assert.deepEqual(service.options.inputRoots, []);
+    assert.deepEqual(service.options.exportRoots, [outputs]);
+  } finally {
+    release();
+    await service.close();
+  }
+});
+
 test('M1 concurrent durable acceptance, default equivalence, frozen input, request conflict and reopen', async () => {
   const env = await setup();
   let service = env.service;

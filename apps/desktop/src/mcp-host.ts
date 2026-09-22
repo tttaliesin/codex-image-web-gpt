@@ -66,6 +66,23 @@ export async function hostMcp(
       copyToken() {
         clipboard.writeText(token);
       },
+      async check() {
+        const client = new Client({ name: 'web-image-bridge-setup', version: app.getVersion() });
+        try {
+          await client.connect(
+            new StreamableHTTPClientTransport(new URL(server.url), {
+              requestInit: { headers: { Authorization: `Bearer ${token}` } },
+            }),
+          );
+          const tools = await client.listTools();
+          const status = (await client.callTool({ name: 'web_image_status', arguments: {} }))
+            .structuredContent as { ok?: boolean } | undefined;
+          if (!status?.ok || tools.tools.length !== 8) throw Error('MCP_CHECK_FAILED');
+          return { tools: tools.tools.length };
+        } finally {
+          await client.close();
+        }
+      },
       validate(file: string, id: string) {
         if (!/^[a-f0-9-]{36}$/.test(id)) throw Error('INVALID_VALIDATION_ID');
         const existing = validating.get(id);

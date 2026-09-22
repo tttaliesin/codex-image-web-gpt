@@ -4,6 +4,7 @@ const reviewedImages = new Set([
   'apps/desktop/ui/icon.png',
   'assets/readme/workspace.png',
   'assets/readme/queue.png',
+  'assets/readme/setup.png',
 ]);
 
 function pathIssues(name) {
@@ -55,7 +56,7 @@ function textIssues(text) {
 
 function isText(name) {
   return (
-    /\.(?:[cm]?js|ts|json|md|ya?ml|toml|ps1|py|svg|html|css|lock|txt)$/.test(name) ||
+    /\.(?:[cm]?js|ts|cs|json|md|ya?ml|toml|ps1|py|svg|html|css|lock|txt)$/.test(name) ||
     path.basename(name).startsWith('.')
   );
 }

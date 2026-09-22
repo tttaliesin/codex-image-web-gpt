@@ -12,6 +12,10 @@ async function main() {
   const destination = path.join(root, '.local/releases', `web-image-bridge-${build}`);
   const runtime = path.join(destination, 'runtime');
   const staging = path.join(root, '.local/package-staging', build);
+  const compiler = path.join(process.env.WINDIR, 'Microsoft.NET/Framework64/v4.0.30319/csc.exe');
+  await fs.access(compiler).catch(() => {
+    throw Error('WINDOWS_DOTNET_FRAMEWORK_COMPILER_REQUIRED');
+  });
   await fs.mkdir(staging, { recursive: true });
   try {
     const beforeModules = await fs.readFile(path.join(root, 'node_modules/.modules.yaml'));
@@ -82,6 +86,34 @@ async function main() {
     await fs.copyFile(
       path.join(root, 'scripts/windows/setup.ps1'),
       path.join(destination, 'setup.ps1'),
+    );
+    // Windows supplies the .NET Framework compiler; the GUI entry point needs no shell.
+    const png = await require('sharp')(path.join(root, 'apps/desktop/ui/icon.png'))
+      .resize(256, 256)
+      .png()
+      .toBuffer();
+    const ico = Buffer.alloc(22);
+    ico.writeUInt16LE(1, 2);
+    ico.writeUInt16LE(1, 4);
+    ico.writeUInt16LE(1, 10);
+    ico.writeUInt16LE(32, 12);
+    ico.writeUInt32LE(png.length, 14);
+    ico.writeUInt32LE(22, 18);
+    const icon = path.join(staging, 'launcher.ico');
+    await fs.writeFile(icon, Buffer.concat([ico, png]));
+    await run(
+      compiler,
+      [
+        '/nologo',
+        '/target:winexe',
+        '/platform:x64',
+        '/optimize+',
+        '/reference:System.Windows.Forms.dll',
+        `/win32icon:${icon}`,
+        `/out:${path.join(destination, 'WebImageBridge.exe')}`,
+        path.join(root, 'scripts/windows/launcher.cs'),
+      ],
+      { windowsHide: true, maxBuffer: 1024 * 1024 },
     );
     const entries = [];
     async function visit(directory) {

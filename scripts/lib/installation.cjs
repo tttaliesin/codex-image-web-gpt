@@ -1,4 +1,7 @@
-const fs = require('node:fs/promises');
+// Installer checksums and copies physical ASAR bytes, including from the desktop GUI.
+const fs = process.versions.electron
+  ? require('original-fs').promises
+  : require('node:fs/promises');
 const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
@@ -188,7 +191,7 @@ function integrationBlock({ root, state, bundled }) {
         enabled: true,
       },
     },
-    skills: { config: [{ path: bundled, enabled: false }] },
+    ...(bundled ? { skills: { config: [{ path: bundled, enabled: false }] } } : {}),
   };
   return `${begin}\n${TOML.stringify(config).trim()}\n${end}`;
 }
@@ -196,16 +199,16 @@ async function register({ root, codex, skill, bundled }) {
   root = path.resolve(root);
   codex = path.resolve(codex);
   skill = path.resolve(skill);
-  bundled = path.resolve(bundled);
+  bundled = bundled ? path.resolve(bundled) : null;
   if (
     path.basename(skill) !== 'imagegen' ||
-    path.basename(bundled) !== 'SKILL.md' ||
-    path.resolve(skill, 'SKILL.md') === bundled
+    (bundled &&
+      (path.basename(bundled) !== 'SKILL.md' || path.resolve(skill, 'SKILL.md') === bundled))
   )
     throw Error('SKILL_PATH_REJECTED');
   await noLinks(codex);
   await noLinks(skill);
-  await noLinks(bundled);
+  if (bundled) await noLinks(bundled);
   const state = await json(path.join(root, 'current.json'));
   if (state.product !== product) throw Error('INSTALL_ROOT_CONFLICT');
   const configFile = path.join(codex, 'config.toml');
@@ -231,7 +234,7 @@ async function register({ root, codex, skill, bundled }) {
   const parsed = TOML.parse(base, { integersAsBigInt: 'asNeeded' });
   if (
     parsed.mcp_servers?.web_image_bridge ||
-    parsed.skills?.config?.some((x) => path.resolve(x.path) === bundled)
+    (bundled && parsed.skills?.config?.some((x) => path.resolve(x.path) === bundled))
   )
     throw Error('EXISTING_CONFIG_CONFLICT');
   const source = path.join(state.directory, 'runtime/resources/app/skills/imagegen');
@@ -249,9 +252,11 @@ async function register({ root, codex, skill, bundled }) {
   const check = TOML.parse(updated, { integersAsBigInt: 'asNeeded' });
   delete check.mcp_servers.web_image_bridge;
   if (!Object.keys(check.mcp_servers).length && !parsed.mcp_servers) delete check.mcp_servers;
-  check.skills.config.pop();
-  if (!check.skills.config.length && !parsed.skills?.config) delete check.skills.config;
-  if (!Object.keys(check.skills).length && !parsed.skills) delete check.skills;
+  if (bundled) {
+    check.skills.config.pop();
+    if (!check.skills.config.length && !parsed.skills?.config) delete check.skills.config;
+    if (!Object.keys(check.skills).length && !parsed.skills) delete check.skills;
+  }
   if (!isDeepStrictEqual(parsed, check)) throw Error('UNRELATED_CONFIG_CHANGED');
   const backup = path.join(root, 'backups', `codex-${Date.now()}-${randomUUID()}.toml`);
   await atomic(backup, text);
@@ -273,7 +278,7 @@ async function register({ root, codex, skill, bundled }) {
     codex,
     skill,
     bundled,
-    bundled_sha256: hash(await fs.readFile(bundled)),
+    bundled_sha256: bundled ? hash(await fs.readFile(bundled)) : null,
     skillFiles: sourceFiles,
     block,
     backup,
@@ -346,4 +351,5 @@ module.exports = {
   atomic,
   json,
   hash,
+  validateConfig,
 };

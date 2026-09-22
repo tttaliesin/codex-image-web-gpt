@@ -725,6 +725,144 @@ h2 {
 .settings-content {
   max-width: 880px;
 }
+.setup-guide {
+  margin: 0 0 28px;
+  padding: 22px 24px;
+  border: 1px solid #ffffff24;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #292929, #202020);
+}
+.setup-guide > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  list-style: none;
+}
+.setup-guide > summary > span:first-child {
+  display: grid;
+  gap: 8px;
+}
+.setup-guide > summary strong {
+  font-size: 18px;
+  font-weight: 550;
+  letter-spacing: -0.5px;
+}
+.setup-guide .eyebrow {
+  margin: 0;
+  font-size: 9px;
+}
+.setup-intro {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  margin: 14px 0 8px;
+}
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding: 18px 0;
+}
+.step-number {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 27px;
+  height: 27px;
+  border: 1px solid #ffffff30;
+  border-radius: 50%;
+  font-size: 11px;
+  color: var(--muted);
+}
+.setup-step[data-complete='true'] .step-number {
+  background: #92c9a01a;
+  border-color: #92c9a050;
+  color: #ace5bb;
+}
+.setup-copy {
+  min-width: 0;
+  flex: 1;
+}
+.setup-copy h2 {
+  font-size: 13px;
+  margin: 0 0 6px;
+}
+.setup-copy p {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.setup-step .button {
+  font-size: 11px;
+  padding: 8px 12px;
+}
+.setup-ready {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: #ace5bb;
+  line-height: 1.6;
+}
+.setup-feedback {
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--muted);
+  margin-top: 8px;
+}
+.setup-feedback:empty {
+  display: none;
+}
+.folder-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+.folder-entry {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.folder-entry span {
+  flex: 1;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: 11px;
+}
+.folder-entry button {
+  flex: none;
+}
+.advanced-settings {
+  color: var(--muted);
+  font-size: 11px;
+  margin: 24px 0;
+}
+.advanced-settings > summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+@media (max-width: 1120px) {
+  .setup-step {
+    flex-wrap: wrap;
+  }
+  .setup-step .setup-copy {
+    min-width: 200px;
+  }
+  .setup-step > .setting-actions {
+    margin-left: 41px;
+  }
+  .setup-ready {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
 .settings-section {
   margin: 30px 0;
 }

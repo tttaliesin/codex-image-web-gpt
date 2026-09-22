@@ -14,9 +14,13 @@ async function launch(stage, extra = []) {
       require('electron'),
       [
         root,
-        stage === 'operations' ? '--operations-test' : '--self-test',
+        stage === 'setup'
+          ? '--setup-test'
+          : stage === 'operations'
+            ? '--operations-test'
+            : '--self-test',
         '--profile',
-        stage === 'operations' ? path.join(profile, 'operations') : profile,
+        ['operations', 'setup'].includes(stage) ? path.join(profile, stage) : profile,
         '--stage',
         stage,
         ...extra,
@@ -51,6 +55,13 @@ async function launch(stage, extra = []) {
     JSON.stringify({ input_roots: [], export_roots: [profile], port, web_execution: true }),
   );
   await launch('operations', ['--mcp-config', configuration]);
+  const setupConfiguration = path.join(profile, 'setup/desktop/mcp-config.json');
+  await mkdir(path.dirname(setupConfiguration), { recursive: true });
+  await writeFile(
+    setupConfiguration,
+    JSON.stringify({ input_roots: [], export_roots: [], port, web_execution: true }),
+  );
+  await launch('setup', ['--mcp-config', setupConfiguration]);
   console.log(`Evidence: ${profile}`);
 })().catch((error) => {
   console.error(error.message);

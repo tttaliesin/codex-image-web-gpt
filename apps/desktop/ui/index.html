@@ -110,6 +110,56 @@
               <svg><use href="#i-folder" /></svg>결과 폴더
             </button>
           </div>
+          <details id="setup-guide" class="setup-guide" open hidden>
+            <summary>
+              <span
+                ><span class="eyebrow">GET STARTED</span
+                ><strong>이미지 작업실 시작하기</strong></span
+              ><span id="setup-count" class="status-pill">0 / 3</span>
+            </summary>
+            <p class="setup-intro">
+              폴더를 고르고, 로그인하고, Codex에 연결하세요. 여기서 모두 끝낼 수 있어요.
+            </p>
+            <div class="setup-step" id="setup-folders">
+              <span class="step-number">1</span>
+              <div class="setup-copy">
+                <h2>이미지 폴더 선택</h2>
+                <p id="setup-folders-hint">
+                  결과를 저장할 폴더를 골라주세요. 참고 이미지 폴더는 나중에 추가해도 돼요.
+                </p>
+              </div>
+              <div class="setting-actions">
+                <button class="button secondary" data-setup="pick-input">입력 폴더 추가</button
+                ><button class="button primary" data-setup="pick-output">저장 폴더 선택</button>
+              </div>
+            </div>
+            <div class="setup-step" id="setup-login">
+              <span class="step-number">2</span>
+              <div class="setup-copy">
+                <h2>ChatGPT 로그인</h2>
+                <p id="setup-login-hint">이 앱의 ChatGPT 페이지에서 한 번 로그인하세요.</p>
+              </div>
+              <button class="button secondary" data-surface="browser">로그인 페이지 열기</button>
+            </div>
+            <div class="setup-step" id="setup-codex">
+              <span class="step-number">3</span>
+              <div class="setup-copy">
+                <h2>Codex 연결</h2>
+                <p id="setup-codex-hint">
+                  연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.
+                </p>
+              </div>
+              <div class="setting-actions">
+                <button class="button primary" data-setup="connect">Codex에 연결</button
+                ><button class="button secondary" data-setup="check" hidden>연결 확인</button>
+              </div>
+            </div>
+            <div id="setup-ready" class="setup-ready" hidden>
+              <span>준비됐어요. Codex를 한 번 다시 시작하고 첫 이미지를 요청하세요.</span
+              ><button class="button primary" data-setup="copy-example">첫 요청 복사</button>
+            </div>
+            <p id="setup-feedback" class="setup-feedback" role="status" aria-live="polite"></p>
+          </details>
           <section class="current-work" aria-labelledby="current-title">
             <div class="work-heading">
               <span class="section-label">현재 작업</span
@@ -212,10 +262,16 @@
             <h2>연결</h2>
             <div class="setting-row">
               <div>
-                <strong>Codex MCP</strong>
-                <p id="mcp-endpoint">연결 확인 중</p>
+                <strong>Codex</strong>
+                <p id="integration-setting">연결 확인 중</p>
               </div>
-              <button class="button secondary" data-action="copy-mcp-token">인증 토큰 복사</button>
+              <div class="setting-actions">
+                <button class="button secondary" data-setup="connect">Codex에 연결</button
+                ><button class="button secondary" data-setup="check">연결 확인</button
+                ><button class="button danger-quiet" data-setup="disconnect" hidden>
+                  연결 해제
+                </button>
+              </div>
             </div>
             <div class="setting-row">
               <div>
@@ -239,12 +295,15 @@
                 <strong>결과 폴더</strong>
                 <p id="export-location" class="path-value">설정되지 않음</p>
               </div>
+              <button class="button secondary" data-setup="pick-output">폴더 변경</button>
             </div>
             <div class="setting-row">
               <div>
                 <strong>허용된 입력 폴더</strong>
                 <p id="input-location" class="path-value">설정되지 않음</p>
+                <div id="input-folders" class="folder-list"></div>
               </div>
+              <button class="button secondary" data-setup="pick-input">폴더 추가</button>
             </div>
             <div class="setting-row">
               <div>
@@ -253,6 +312,16 @@
               </div>
             </div>
           </section>
+          <details class="advanced-settings">
+            <summary>고급 연결 정보</summary>
+            <div class="setting-row">
+              <div>
+                <strong>로컬 MCP 주소</strong>
+                <p id="mcp-endpoint">연결 확인 중</p>
+              </div>
+              <button class="button secondary" data-action="copy-mcp-token">인증 토큰 복사</button>
+            </div>
+          </details>
           <section id="legacy-controls" class="settings-section" hidden>
             <h2>요청 파일</h2>
             <div class="setting-row">

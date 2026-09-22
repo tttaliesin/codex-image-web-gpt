@@ -9,6 +9,7 @@ import {
   dialog,
   powerMonitor,
   shell,
+  clipboard,
 } from 'electron';
 import path from 'node:path';
 import { mkdir } from 'node:fs/promises';
@@ -44,11 +45,29 @@ const argument = (name: string) => {
   return index < 0 ? undefined : process.argv[index + 1];
 };
 const operationsTesting = process.argv.includes('--operations-test');
-const testing = process.argv.includes('--self-test') || operationsTesting;
+const setupTesting = process.argv.includes('--setup-test');
+const testing = process.argv.includes('--self-test') || operationsTesting || setupTesting;
 const fixtureMode = testing || process.argv.includes('--fixture');
-const profile = path.resolve(
-  argument('--profile') ?? path.join(root, '.local', fixtureMode ? 'fixture-profile' : 'profile'),
-);
+const { DesktopSetup, launchContext } = require(path.join(root, 'scripts/lib/desktop-setup.cjs'));
+const context = launchContext({
+  appRoot: root,
+  packaged: app.isPackaged,
+  root:
+    argument('--install-root') ??
+    (app.isPackaged
+      ? path.join(process.env.LOCALAPPDATA ?? app.getPath('appData'), 'WebImageBridge')
+      : path.join(argument('--profile') ?? path.join(root, '.local'), 'desktop')),
+  profile:
+    argument('--profile') ??
+    (!app.isPackaged
+      ? path.join(root, '.local', fixtureMode ? 'fixture-profile' : 'profile')
+      : undefined),
+  config: argument('--mcp-config'),
+});
+const profile: string = context.profile;
+const mcpConfiguration =
+  argument('--mcp-config') ?? (!testing && !argument('--request') ? context.config : undefined);
+let setup: InstanceType<typeof DesktopSetup> | undefined;
 app.setName('Web Image Bridge');
 app.setPath('userData', path.resolve(profile));
 let window: BrowserWindow | undefined;
@@ -130,6 +149,38 @@ function status(value: string) {
 async function start() {
   await app.whenReady();
   await mkdir(profile, { recursive: true });
+  if (mcpConfiguration) {
+    setup = new DesktopSetup({
+      ...context,
+      config: mcpConfiguration,
+      port: fixtureMode ? 43180 : 43179,
+      configureFolders: async (next: McpConfiguration, persist: () => Promise<void>) => {
+        if (!mcp) throw Error('MCP_NOT_ENABLED');
+        await mcp.service.configureFolders(next.input_roots, next.export_roots, persist);
+      },
+      health: async () => {
+        if (!mcp) throw Error('MCP_NOT_ENABLED');
+        return mcp.check();
+      },
+      shortcut: async (installed: { exe: string; profile: string; config: string }) => {
+        const shortcutFile = path.join(app.getPath('desktop'), 'Web Image Bridge.lnk');
+        // Never replace a shortcut belonging to another application.
+        try {
+          const previous = shell.readShortcutLink(shortcutFile);
+          if (!previous.target.startsWith(path.join(context.root, 'versions') + path.sep)) return;
+        } catch {
+          /* First installation has no shortcut. */
+        }
+        shell.writeShortcutLink(shortcutFile, 'create', {
+          target: installed.exe,
+          args: `--profile "${installed.profile}" --mcp-config "${installed.config}" --install-root "${context.root}"`,
+          description: 'Web Image Bridge',
+        });
+      },
+    });
+    await setup.initialize();
+    configuration = setup.configuration as McpConfiguration;
+  }
   if (fixtureMode) {
     if (app.isPackaged) throw Error('DEVELOPMENT_MODE_REQUIRES_SOURCE');
     const { fixtureServer } =
@@ -275,7 +326,6 @@ async function start() {
   );
   const downloads = new DownloadCollector(partition, view.webContents, fixture?.origin);
   runner = new ProbeRunner(path.join(profile, 'probes'), adapter, downloads, status);
-  const mcpConfiguration = argument('--mcp-config');
   cdp.contents.debugger.on('detach', () => {
     if (!quitting) {
       status('ADAPTER_UNAVAILABLE');
@@ -336,8 +386,72 @@ async function start() {
         profile,
         version: app.getVersion(),
       },
+      setup: setup?.snapshot() ?? null,
       request: request ? { id: request.id, input_count: request.inputs.length } : null,
     };
+  });
+  handleDesktopCommand(window, 'bridge:setup', async (action: unknown, index?: unknown) => {
+    if (!setup) throw Error('SETUP_UNAVAILABLE');
+    if (
+      typeof action !== 'string' ||
+      ![
+        'pick-input',
+        'pick-output',
+        'remove-input',
+        'connect',
+        'disconnect',
+        'check',
+        'copy-example',
+      ].includes(action)
+    )
+      throw Error('INPUT_INVALID');
+    if (action === 'pick-input' || action === 'pick-output') {
+      const picked = await dialog.showOpenDialog(window!, {
+        title: action === 'pick-input' ? '참고 이미지를 가져올 폴더' : '이미지를 저장할 폴더',
+        properties: [
+          'openDirectory',
+          'createDirectory',
+          ...(action === 'pick-input' ? ['multiSelections' as const] : []),
+        ],
+      });
+      return setup.setFolders(
+        action === 'pick-input' ? 'input' : 'export',
+        picked.canceled
+          ? null
+          : action === 'pick-input'
+            ? [...configuration!.input_roots, ...picked.filePaths]
+            : picked.filePaths,
+      );
+    }
+    if (action === 'remove-input') {
+      if (
+        !Number.isInteger(index) ||
+        (index as number) < 0 ||
+        (index as number) >= configuration!.input_roots.length
+      )
+        throw Error('INPUT_INVALID');
+      return setup.setFolders(
+        'input',
+        configuration!.input_roots.filter((_, i) => i !== index),
+      );
+    }
+    if (action === 'copy-example') {
+      const output = configuration!.export_roots[0];
+      if (!output) throw Error('OUTPUT_FOLDER_REQUIRED');
+      await clipboard.writeText(
+        `Web Image Bridge로 흰 배경 위의 작은 도자기 화병을 그려줘. 결과 원본을 ${output} 폴더에 저장해줘.`,
+      );
+      return { copied: true };
+    }
+    if (action === 'connect') {
+      if (!mcp) throw Error('MCP_NOT_ENABLED');
+      if (pageStatus !== 'ready') throw Error('AUTH_REQUIRED');
+      const result = await setup.connect();
+      await setup.check();
+      return { ...result, verified: true };
+    }
+    if (action === 'disconnect') return setup.disconnect();
+    return setup.check();
   });
   handleDesktopCommand(window, 'bridge:surface', (selected: string) => desktop!.select(selected));
   handleDesktopCommand(window, 'bridge:viewport', (bounds: Electron.Rectangle) =>
@@ -437,7 +551,7 @@ async function start() {
   const initialPage = await adapter.snapshot().catch(() => null);
   pageStatus = observedPageStatus(initialPage);
   if (mcpConfiguration) {
-    configuration = await readJson<McpConfiguration>(mcpConfiguration);
+    configuration = setup.configuration as McpConfiguration;
     if (configuration.web_execution) {
       if (request) throw Error('STATE_CONFLICT');
       webExecution = new BrowserExecution(adapter, downloads, {
@@ -511,10 +625,18 @@ async function start() {
     const unbindPower = bindPower(powerMonitor, operations);
     app.once('will-quit', unbindPower);
     refreshTray();
+    if (setup?.registered) await setup.check().catch(() => {});
   }
   if (testing) {
     try {
-      if (operationsTesting) {
+      if (setupTesting) {
+        const { setupSelfTest } =
+          require('../../../tests/electron/setup-self-test') as typeof import('../../../tests/electron/setup-self-test');
+        if (!mcp || !setup) throw Error('MCP_NOT_ENABLED');
+        await setupSelfTest(window, view, setup, mcp.service, profile);
+        await mcp.close();
+        mcp = undefined;
+      } else if (operationsTesting) {
         const { operationsSelfTest } =
           require('../../../tests/electron/operations-self-test') as typeof import('../../../tests/electron/operations-self-test');
         if (!mcp) throw Error('MCP_NOT_ENABLED');

@@ -35,6 +35,7 @@ export class Exporter {
       if (record.snapshot.state === 'copying') this.kick(record.snapshot.export_id);
   }
   async idle() {
+    await this.serial.run(() => undefined);
     await Promise.all(this.tasks.values());
   }
   async submit(raw: ContractTypes['export_input']) {

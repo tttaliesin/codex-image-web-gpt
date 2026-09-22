@@ -45,6 +45,118 @@ let displayed,
   surface = 'workspace',
   viewportSignature = '',
   toastTimer;
+let setupPending = false,
+  folderSignature = '';
+const setupErrors = {
+  SETUP_BUSY: '다른 설정을 적용하고 있어요. 완료 후 다시 눌러주세요.',
+  STATE_CONFLICT: '진행 중이거나 대기 중인 작업이 있어요. 작업이 끝난 뒤 폴더를 변경해 주세요.',
+  FOLDER_UNAVAILABLE: '사용할 수 없는 폴더예요. 이 컴퓨터에 있는 폴더를 다시 골라주세요.',
+  FOLDER_LINK_REJECTED: '바로가기나 연결 폴더 대신 원본 폴더를 선택해 주세요.',
+  AUTH_REQUIRED: 'ChatGPT 페이지에서 로그인한 뒤 다시 연결해 주세요.',
+  MCP_NOT_ENABLED: '앱 연결을 준비하고 있어요. 잠시 후 다시 시도해 주세요.',
+  OUTPUT_FOLDER_REQUIRED: '먼저 결과를 저장할 폴더를 골라주세요.',
+  PACKAGED_APP_REQUIRED: 'Codex 연결은 다운로드한 배포 앱에서 사용할 수 있어요.',
+  EXISTING_SKILL_CONFLICT:
+    '기존 imagegen 스킬과 충돌해요. 기존 파일은 보존했습니다. 사용 중인 스킬을 확인해 주세요.',
+  EXISTING_CONFIG_CONFLICT: '기존 Codex 연결 설정과 충돌해요. 기존 설정을 변경하지 않았습니다.',
+  INSTALLED_SKILL_CHANGED: '설치 후 수정된 스킬이 있어요. 수정한 내용은 보존했습니다.',
+  SKILL_UPDATE_REQUIRES_UNREGISTER:
+    '이전 스킬을 갱신하려면 설정에서 연결 해제 후 다시 연결해 주세요. 기존 스킬은 백업됩니다.',
+  CONFIG_MANAGED_BLOCK_CHANGED: 'Codex 설정이 설치 후 변경됐어요. 현재 설정을 보존했습니다.',
+  CONFIG_MANAGED_BLOCK_MISSING:
+    'Codex의 연결 설정을 찾지 못했어요. 기존 등록 정보를 확인해 주세요.',
+  CODEX_NOT_REGISTERED: '먼저 Codex에 연결 버튼으로 설정을 등록해 주세요.',
+  MCP_CHECK_FAILED: '로컬 연결을 확인하지 못했어요. 앱을 다시 연 뒤 연결 확인을 눌러주세요.',
+  INTEGRATION_TARGET_CONFLICT:
+    '기존 설치 위치와 설정이 달라요. 바탕화면 바로가기로 앱을 다시 열어주세요.',
+};
+
+function renderSetup(state) {
+  const setup = state.setup;
+  $('#setup-guide').hidden = !setup;
+  if (!setup) return;
+  const folders = !!state.settings?.export_roots?.length;
+  const login = state.page_status === 'ready';
+  const connected = setup.registered && setup.checked;
+  const completed = [folders, login, connected];
+  ['folders', 'login', 'codex'].forEach((name, index) => {
+    const step = $(`#setup-${name}`);
+    step.dataset.complete = String(completed[index]);
+    step.querySelector('.step-number').textContent = completed[index] ? '✓' : String(index + 1);
+  });
+  text('#setup-count', `${completed.filter(Boolean).length} / 3`);
+  text(
+    '#setup-folders-hint',
+    folders
+      ? `저장 위치 · ${state.settings.export_roots[0]}`
+      : '결과를 저장할 폴더를 골라주세요. 참고 이미지 폴더는 나중에 추가해도 돼요.',
+  );
+  text(
+    '#setup-login-hint',
+    login
+      ? '이 앱의 ChatGPT 세션에 로그인되어 있어요.'
+      : '이 앱의 ChatGPT 페이지에서 한 번 로그인하세요.',
+  );
+  text(
+    '#setup-codex-hint',
+    !setup.available
+      ? '소스 실행 중입니다. Codex 연결은 배포 앱에서 진행하세요.'
+      : connected
+        ? '설정 등록과 로컬 연결 확인이 끝났어요. Codex를 한 번 다시 시작해 주세요.'
+        : setup.registered
+          ? '설정이 등록됐어요. 연결 확인을 눌러 사용할 준비가 됐는지 확인하세요.'
+          : '연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.',
+  );
+  text(
+    '#integration-setting',
+    setup.error
+      ? setupErrors[setup.error] || '연결 설정 확인이 필요해요.'
+      : connected
+        ? '설정 등록됨 · 로컬 연결 확인 완료'
+        : setup.registered
+          ? '설정 등록됨 · 연결 확인 필요'
+          : '아직 Codex에 등록되지 않았어요.',
+  );
+  $('#setup-ready').hidden = !completed.every(Boolean);
+  const allowed = {
+    'pick-input': state.mcp_enabled && !state.busy,
+    'pick-output': state.mcp_enabled && !state.busy,
+    'remove-input': state.mcp_enabled && !state.busy,
+    connect: setup.available && folders && login && state.mcp_enabled,
+    disconnect: setup.registered || !!setup.error,
+    check: setup.registered && state.mcp_enabled,
+    'copy-example': folders,
+  };
+  const signature = JSON.stringify(state.settings.input_roots);
+  if (signature !== folderSignature) {
+    folderSignature = signature;
+    $('#input-folders').replaceChildren();
+    (state.settings.input_roots || []).forEach((folder, index) => {
+      const row = document.createElement('div');
+      row.className = 'folder-entry';
+      const label = document.createElement('span');
+      label.textContent = folder;
+      const remove = document.createElement('button');
+      remove.className = 'button quiet';
+      remove.dataset.setup = 'remove-input';
+      remove.dataset.index = String(index);
+      remove.textContent = '제거';
+      remove.setAttribute('aria-label', `${folder} 입력 권한 제거`);
+      row.append(label, remove);
+      $('#input-folders').append(row);
+    });
+  }
+  document.querySelectorAll('[data-setup]').forEach((button) => {
+    const action = button.dataset.setup;
+    button.disabled = setupPending || setup.working || !allowed[action];
+    if (action === 'disconnect') button.hidden = !setup.registered && !setup.error;
+    if (action === 'connect') {
+      button.hidden = setup.registered && !setup.update_available;
+      button.textContent = setup.update_available ? '앱 업데이트' : 'Codex에 연결';
+    }
+    if (action === 'check') button.hidden = !setup.registered;
+  });
+}
 
 function setSurface(value) {
   surface = value;
@@ -133,6 +245,7 @@ function renderHistory(jobs) {
 function render(state) {
   latest = state;
   displayed = state.operations;
+  renderSetup(state);
   const ops = state.operations,
     job = ops?.job,
     manual = ops?.session?.control_owner === 'manual';
@@ -286,14 +399,15 @@ function render(state) {
     else element.removeAttribute('aria-current');
     element.querySelector('span').textContent = done ? '✓' : String(index + 1);
   });
-  text('#mcp-summary', state.mcp_enabled ? '요청 수신 준비됨' : '설정 필요');
-  tone('#mcp-summary', state.mcp_enabled ? 'success' : 'warning');
+  const codexReady = state.mcp_enabled && (!state.setup || state.setup.registered);
+  text('#mcp-summary', codexReady ? '설정 등록됨' : '연결 필요');
+  tone('#mcp-summary', codexReady ? 'success' : 'warning');
   text('#session-summary', pageLabels[page] || '확인 중');
   tone('#session-summary', pageTone);
   text('#waiting-summary', `${ops?.waiting_count ?? 0}개`);
-  tone('#connection-dot', state.mcp_enabled ? 'success' : 'warning');
+  tone('#connection-dot', codexReady ? 'success' : 'warning');
   tone('#browser-dot', pageTone);
-  text('#connection-label', state.mcp_enabled ? 'Codex 요청 수신 준비' : 'Codex 연결 설정 필요');
+  text('#connection-label', codexReady ? 'Codex 설정 등록됨' : 'Codex 연결 설정 필요');
   text(
     '#connection-caption',
     state.busy
@@ -305,7 +419,12 @@ function render(state) {
   text('#mcp-endpoint', state.settings?.mcp_endpoint || 'MCP 서버가 실행되지 않았습니다.');
   text('#login-setting', pageLabels[page] || '확인 중');
   text('#export-location', state.settings?.export_roots?.join('\n') || '설정되지 않음');
-  text('#input-location', state.settings?.input_roots?.join('\n') || '설정되지 않음');
+  text(
+    '#input-location',
+    state.settings?.input_roots?.length
+      ? `폴더 ${state.settings.input_roots.length}개 허용`
+      : '참고 이미지를 사용할 폴더를 추가하세요.',
+  );
   text('#profile-location', state.settings?.profile || '이 컴퓨터에 보관');
   text('#app-version', state.settings?.version || '');
   text('#control-label', manual ? '직접 조작 중' : '자동화 조작권');
@@ -374,6 +493,48 @@ document.querySelectorAll('[data-action]').forEach((button) =>
   }),
 );
 window.bridge.onSurface(setSurface);
+document.addEventListener('click', async (event) => {
+  const button = event.target.closest('[data-setup]');
+  if (!button || button.disabled || setupPending) return;
+  setupPending = true;
+  text(
+    '#setup-feedback',
+    button.dataset.setup === 'connect'
+      ? '앱을 설치하고 Codex 연결 설정을 등록하고 있어요…'
+      : '설정을 적용하고 있어요…',
+  );
+  if (latest) renderSetup(latest);
+  try {
+    const result = await window.bridge.setup(
+      button.dataset.setup,
+      button.dataset.index === undefined ? undefined : Number(button.dataset.index),
+    );
+    $('#action-error').hidden = true;
+    const message = result?.canceled
+      ? ''
+      : result?.copied
+        ? '첫 요청을 복사했어요. Codex에 붙여넣어 주세요.'
+        : result?.verified
+          ? '설정과 로컬 연결을 확인했어요. Codex를 다시 시작하면 사용할 수 있어요.'
+          : result?.registered
+            ? 'Codex 연결 설정을 등록했어요. Codex를 한 번 다시 시작해 주세요.'
+            : button.dataset.setup === 'disconnect'
+              ? '연결을 해제했어요. 로그인과 작업 기록은 보존됐습니다.'
+              : '폴더 설정을 저장했어요. 바로 적용됩니다.';
+    text('#setup-feedback', message);
+    if (message) toast(message);
+  } catch (error) {
+    const code = Object.keys(setupErrors).find((code) => error.message?.includes(code));
+    const message = code
+      ? setupErrors[code]
+      : '설정을 마치지 못했어요. 현재 연결 상태를 확인하고 다시 시도해 주세요.';
+    text('#setup-feedback', message);
+    showError(message);
+  } finally {
+    setupPending = false;
+    await update();
+  }
+});
 new ResizeObserver(() => {
   void reportViewport();
 }).observe($('#browser-viewport'));
