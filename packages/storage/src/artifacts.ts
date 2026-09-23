@@ -97,27 +97,29 @@ export class ArtifactStore {
       }
     }
   }
-  // A job's downloads are copied into artifacts on commit and read only while the job can
-  // still run. Once it is terminal and no web run can continue, they would only double the
-  // disk use of every image. Failures are left for the next startup sweep.
-  async discardDownloads(jobId: string) {
+  // Downloads are copied into artifacts on commit, and staged inputs are read only while the
+  // job can still run. Once it is terminal and no web run can continue, neither is read again.
+  // Inputs of an admission that never became a job stay: a retry of its request resumes them.
+  // Failures are left for the next startup sweep.
+  async discardWorkFiles(jobId: string) {
     try {
       if (!/^[0-9a-f-]{36}$/.test(jobId)) return;
       const job = this.engine.db.get<JobRecord>('jobs', jobId)?.snapshot;
       if (!job?.terminal || job.remote_may_continue) return;
-      await rm(path.join(this.directory, 'downloads', jobId), {
-        recursive: true,
-        force: true,
-        maxRetries: 3,
-      });
+      for (const kind of ['downloads', 'inputs'])
+        await rm(path.join(this.directory, kind, jobId), {
+          recursive: true,
+          force: true,
+          maxRetries: 3,
+        });
     } catch {
       /* Busy files or a closed database: retried at the next startup. */
     }
   }
-  async sweepDownloads() {
-    const directory = path.join(this.directory, 'downloads');
-    for (const name of await readdir(directory).catch(() => [] as string[]))
-      await this.discardDownloads(name);
+  async sweepWorkFiles() {
+    for (const kind of ['downloads', 'inputs'])
+      for (const name of await readdir(path.join(this.directory, kind)).catch(() => [] as string[]))
+        await this.discardWorkFiles(name);
   }
   // The response already exists on the web, so collecting it again never resubmits.
   private holdForUser(jobId: string) {
