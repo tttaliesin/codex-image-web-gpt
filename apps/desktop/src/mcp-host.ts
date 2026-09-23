@@ -58,7 +58,7 @@ export async function hostMcp(
   });
   try {
     await service.ready;
-    const server = await startMcp(service, token, configuration.port);
+    const server = await startMcp(service, token, configuration.port, app.getVersion());
     const validating = new Map<string, Promise<void>>();
     return {
       service,
@@ -105,7 +105,10 @@ export async function hostMcp(
             if (prior.command_sha256 !== hash) throw Error('VALIDATION_CONFLICT');
             return;
           }
-          const client = new Client({ name: 'web-image-bridge-validation', version: '0.2.0' });
+          const client = new Client({
+            name: 'web-image-bridge-validation',
+            version: app.getVersion(),
+          });
           try {
             await client.connect(
               new StreamableHTTPClientTransport(new URL(server.url), {

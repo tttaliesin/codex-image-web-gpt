@@ -10,11 +10,17 @@ import { toNodeHandler } from '@modelcontextprotocol/node';
 import { toolDefinitions, schema } from '../../contracts/src';
 import { BridgeService } from '../../core/src/service';
 
-export async function startMcp(service: BridgeService, token: string, port = 43179) {
+// `version` is the app release; the tool contract is versioned separately by schema_version.
+export async function startMcp(
+  service: BridgeService,
+  token: string,
+  port = 43179,
+  version = '0.0.0-dev',
+) {
   if (token.length < 32) throw Error('MCP token must contain at least 32 characters');
   const handler = createMcpHandler(() => {
     const server = new Server(
-      { name: 'web-image-bridge', version: '0.1.0' },
+      { name: 'web-image-bridge', version },
       { capabilities: { tools: {} } },
     );
     server.setRequestHandler('tools/list', async () => ({
