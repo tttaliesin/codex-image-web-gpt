@@ -22,11 +22,15 @@ async function setup() {
   await mkdir('.local/tests', { recursive: true });
   const root = await mkdtemp(path.resolve('.local/tests/cleanup-'));
   const outputs = path.join(root, 'output'),
+    inputs = path.join(root, 'input'),
     directory = path.join(root, 'app');
   await mkdir(outputs);
+  await mkdir(inputs);
   const png = await sharp({ create: { width: 8, height: 6, channels: 3, background: '#2266AA' } })
     .png()
     .toBuffer();
+  const input = path.join(inputs, 'reference.png');
+  await writeFile(input, png);
   // Each run downloads `count` files; `outside` places the last one outside the download root.
   const plan = { count: 1, outside: false };
   const run = async (context: ExecutionContext) => {
@@ -58,17 +62,18 @@ async function setup() {
   };
   const options = {
     directory,
-    inputRoots: [],
+    inputRoots: [inputs],
     exportRoots: [outputs],
     port: { version: 'cleanup', run },
   };
   const service = new BridgeService(options);
   await service.ready;
-  const submit = async () => {
+  const submit = async (withInput = false) => {
     const result = await service.call('web_image_submit', {
       request_id: randomUUID(),
       mode: 'generate',
       prompt: 'cleanup fixture',
+      ...(withInput ? { inputs: [{ path: input, role: 'reference' }] } : {}),
     });
     assert.equal(result.ok, true, JSON.stringify(result));
     await service.engine.idle();
@@ -189,7 +194,7 @@ test('export temps never outlive their item in the user folder, except as adopti
   }
 });
 
-test('downloads are removed once a job is final, and kept while a web run may continue', async () => {
+test('work files are removed once a job is final, and kept while a web run may continue', async () => {
   const env = await setup();
   let service = env.service;
   const eventually = async (check: () => Promise<boolean>) => {
@@ -199,20 +204,24 @@ test('downloads are removed once a job is final, and kept while a web run may co
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
   };
-  const downloads = (jobId: string) => path.join(env.directory, 'downloads', jobId);
+  const work = (kind: 'downloads' | 'inputs', jobId: string) =>
+    path.join(env.directory, kind, jobId);
+  const present = async (jobId: string) =>
+    (await exists(work('downloads', jobId))) || (await exists(work('inputs', jobId)));
   try {
-    const succeeded = await env.submit();
+    const succeeded = await env.submit(true);
     assert.equal(succeeded.state, 'succeeded');
-    await eventually(async () => !(await exists(downloads(succeeded.job_id))));
+    await eventually(async () => !(await present(succeeded.job_id)));
     const listed = await service.call('web_image_artifacts', { job_id: succeeded.job_id });
     assert.equal(listed.ok, true, JSON.stringify(listed));
 
-    // The second file is refused: the job stays open with its first download on disk.
+    // The second file is refused: the job stays open with its input and first download.
     env.plan.count = 2;
     env.plan.outside = true;
-    const open = await env.submit();
+    const open = await env.submit(true);
     assert.equal(open.state, 'unknown');
-    assert.equal(await exists(downloads(open.job_id)), true);
+    assert.equal(await exists(work('downloads', open.job_id)), true);
+    assert.equal(await exists(work('inputs', open.job_id)), true);
     const canceled = (
       (await service.call('web_image_control', {
         request_id: randomUUID(),
@@ -223,19 +232,27 @@ test('downloads are removed once a job is final, and kept while a web run may co
     ).data.job;
     assert.equal(canceled.remote_may_continue, true);
     await new Promise((resolve) => setTimeout(resolve, 100));
-    assert.equal(await exists(downloads(open.job_id)), true);
+    assert.equal(await exists(work('downloads', open.job_id)), true);
+    assert.equal(await exists(work('inputs', open.job_id)), true);
     await service.releaseRemote(open.job_id, canceled.revision);
-    await eventually(async () => !(await exists(downloads(open.job_id))));
+    await eventually(async () => !(await present(open.job_id)));
 
-    // Leftovers from a crash are swept at startup; unknown directories are not touched.
-    await mkdir(downloads(succeeded.job_id), { recursive: true });
-    await writeFile(path.join(downloads(succeeded.job_id), 'stale.png'), 'stale');
-    const foreign = [downloads('not-a-job'), downloads(randomUUID())];
+    // Leftovers from a crash are swept at startup. Unknown directories, including inputs of
+    // an admission that never became a job, are not touched.
+    for (const kind of ['downloads', 'inputs'] as const) {
+      await mkdir(work(kind, succeeded.job_id), { recursive: true });
+      await writeFile(path.join(work(kind, succeeded.job_id), 'stale.png'), 'stale');
+    }
+    const foreign = [
+      work('downloads', 'not-a-job'),
+      work('downloads', randomUUID()),
+      work('inputs', randomUUID()),
+    ];
     for (const directory of foreign) await mkdir(directory, { recursive: true });
     await service.close();
     service = new BridgeService(env.options);
     await service.ready;
-    await eventually(async () => !(await exists(downloads(succeeded.job_id))));
+    await eventually(async () => !(await present(succeeded.job_id)));
     for (const directory of foreign) assert.equal(await exists(directory), true);
   } finally {
     await service.close();

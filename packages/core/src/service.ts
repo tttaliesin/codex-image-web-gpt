@@ -54,7 +54,7 @@ export class BridgeService {
   // Serializes submits (idempotent admission and input staging). Always taken before
   // engine.serial, never while holding it.
   private readonly admissions = new Serial();
-  // Download removal in the background, awaited only by close().
+  // Work file removal in the background, awaited only by close().
   private cleanup: Promise<void> = Promise.resolve();
   async configureFolders(
     inputRoots: string[],
@@ -105,14 +105,14 @@ export class BridgeService {
     this.exporter = new Exporter(this.db, new Roots(options.exportRoots));
     this.artifacts = new ArtifactStore(options.directory, this.engine);
     this.engine.changes.on('changed', (id: string) => {
-      this.cleanup = this.cleanup.then(() => this.artifacts.discardDownloads(id));
+      this.cleanup = this.cleanup.then(() => this.artifacts.discardWorkFiles(id));
     });
     this.engine.recover();
     this.ready = this.artifacts.recover().then(() => {
       this.engine.kick();
       this.exporter.recover();
       // Removing leftovers can take a while after an update; it never delays startup.
-      this.cleanup = this.cleanup.then(() => this.artifacts.sweepDownloads());
+      this.cleanup = this.cleanup.then(() => this.artifacts.sweepWorkFiles());
     });
   }
   async close() {
