@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { mkdir, copyFile, rename, open, readdir } from 'node:fs/promises';
+import { mkdir, copyFile, rename, open, readdir, unlink } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { validDefinition } from '../../contracts/src';
 import { Engine } from '../../core/src/engine';
@@ -27,52 +27,62 @@ export class ArtifactStore {
     if (initial.state !== 'running' || initial.submission_state !== 'confirmed')
       throw new Fault('STATE_CONFLICT');
     const session = this.engine.session(initial.session_id);
+    const manifest = path.join(this.directory, 'manifests', `${jobId}.json`);
     const artifacts: Artifact[] = [];
-    for (const [index, file] of files.entries()) {
-      if (
-        file.source.session_id !== session.session_id ||
-        file.source.conversation_url !== session.conversation_url
-      )
-        throw new Fault('STATE_CONFLICT');
-      const source = await new Roots([path.join(this.directory, 'downloads', jobId)]).check(
-        file.path,
-      );
-      const info = await inspectImage(source);
-      const id = randomUUID();
-      const directory = path.join(this.directory, 'artifacts', jobId);
-      await mkdir(directory, { recursive: true });
-      const target = path.join(directory, `${id}.${info.extension}`);
-      const temporary = `${target}.part`;
-      await copyFile(source, temporary, constants.COPYFILE_EXCL);
-      if ((await inspectImage(temporary)).sha256 !== info.sha256) throw new Fault('IO_ERROR');
-      const handle = await open(temporary, 'r+');
-      try {
-        await handle.sync();
-      } finally {
-        await handle.close();
+    const staged: string[] = [];
+    try {
+      for (const [index, file] of files.entries()) {
+        if (
+          file.source.session_id !== session.session_id ||
+          file.source.conversation_url !== session.conversation_url
+        )
+          throw new Fault('STATE_CONFLICT');
+        const source = await new Roots([path.join(this.directory, 'downloads', jobId)]).check(
+          file.path,
+        );
+        const info = await inspectImage(source);
+        const id = randomUUID();
+        const directory = path.join(this.directory, 'artifacts', jobId);
+        await mkdir(directory, { recursive: true });
+        const target = path.join(directory, `${id}.${info.extension}`);
+        const temporary = `${target}.part`;
+        staged.push(temporary); // The exclusive copy below creates it, even if only in part.
+        await copyFile(source, temporary, constants.COPYFILE_EXCL);
+        if ((await inspectImage(temporary)).sha256 !== info.sha256) throw new Fault('IO_ERROR');
+        const handle = await open(temporary, 'r+');
+        try {
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        const artifact = {
+          artifact_id: id,
+          job_id: jobId,
+          ordinal: index + 1,
+          path: target,
+          sha256: info.sha256,
+          mime_type: info.mime,
+          size_bytes: info.bytes,
+          width: info.width,
+          height: info.height,
+          has_alpha: info.has_alpha,
+          has_transparency: info.has_transparency,
+          verified_at: now(),
+          source: file.source,
+        } as Artifact;
+        if (!validDefinition('artifact', artifact)) throw new Fault('INPUT_INVALID');
+        artifacts.push(artifact);
       }
-      const artifact = {
-        artifact_id: id,
-        job_id: jobId,
-        ordinal: index + 1,
-        path: target,
-        sha256: info.sha256,
-        mime_type: info.mime,
-        size_bytes: info.bytes,
-        width: info.width,
-        height: info.height,
-        has_alpha: info.has_alpha,
-        has_transparency: info.has_transparency,
-        verified_at: now(),
-        source: file.source,
-      } as Artifact;
-      if (!validDefinition('artifact', artifact)) throw new Fault('INPUT_INVALID');
-      artifacts.push(artifact);
+      // Persist recovery intent before any final file becomes visible.
+      await durableJson(manifest, artifacts);
+    } catch (error) {
+      // Without a manifest nothing refers to these copies; a retry stages new ones.
+      await Promise.all(staged.map((file) => unlink(file).catch(() => {})));
+      throw error;
     }
-    // Persist recovery intent before any final file becomes visible.
-    await durableJson(path.join(this.directory, 'manifests', `${jobId}.json`), artifacts);
     for (const artifact of artifacts) await rename(`${artifact.path}.part`, artifact.path);
     await this.commit(jobId, artifacts);
+    await unlink(manifest).catch(() => {}); // Committed: the receipt now lives in the database.
   }
   async recover() {
     const directory = path.join(this.directory, 'manifests');
@@ -111,7 +121,9 @@ export class ArtifactStore {
   }
   private async recoverManifest(jobId: string, file: string) {
     const job = this.engine.job(jobId).snapshot;
-    if (job.terminal || job.submission_state !== 'confirmed') return;
+    // Left by a crash between commit and cleanup; the database already holds the receipt.
+    if (job.terminal) return void (await unlink(file).catch(() => {}));
+    if (job.submission_state !== 'confirmed') return;
     const artifacts = await readJson<Artifact[]>(file);
     if (!artifacts.length || artifacts.length > 4) throw new Fault('INPUT_INVALID');
     for (const artifact of artifacts) {
@@ -133,6 +145,7 @@ export class ArtifactStore {
         throw new Fault('INPUT_INVALID');
     }
     await this.commit(jobId, artifacts);
+    await unlink(file).catch(() => {});
   }
   private commit(jobId: string, artifacts: Artifact[]) {
     return this.engine.serial.run(() =>
