@@ -17,6 +17,9 @@ import { request as httpRequest } from 'node:http';
 import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
 import sharp from 'sharp';
 import { BridgeService } from '../../packages/core/src/service';
+import { Exporter } from '../../packages/storage/src/exporter';
+import { Roots } from '../../packages/storage/src/roots';
+import { inspectImage } from '../../packages/storage/src/files';
 import { startMcp } from '../../packages/mcp/src/server';
 import { validTool } from '../../packages/contracts/src';
 import { now } from '../../packages/core/src/model';
@@ -611,6 +614,69 @@ test('M1 partial export retries only missing item, persists completed paths, and
       { ...input, export_id: randomUUID(), destination_dir: env.root },
       'PATH_DENIED',
     );
+  } finally {
+    await service.close();
+  }
+});
+
+test('M1 export falls back to an exclusive verified copy where hard links are unavailable', async () => {
+  let service!: BridgeService, png!: Buffer;
+  const env = await setup({
+    version: 'fixture',
+    run: (context) => completeFixture(service, context, png),
+  });
+  service = env.service;
+  png = await readFile(env.file);
+  // FAT32 and exFAT refuse CreateHardLinkW; libuv reports ERROR_INVALID_FUNCTION as EISDIR.
+  const noLinks = async () => {
+    throw Object.assign(Error('link unsupported'), { code: 'EISDIR' });
+  };
+  try {
+    const job = (await ok(service, 'submit', submit())).job;
+    await service.engine.idle();
+    const artifact = (await ok(service, 'artifacts', { job_id: job.job_id })).artifacts[0];
+    let exporter = new Exporter(service.db, new Roots([env.outputs]), noLinks);
+    const input: Parameters<Exporter['submit']>[0] = {
+      export_id: randomUUID(),
+      artifact_ids: [artifact.artifact_id],
+      destination_dir: env.outputs,
+    };
+    await exporter.submit(input);
+    await exporter.idle();
+    const exported = (await exporter.submit(input)).export;
+    assert.equal(exported.state, 'succeeded');
+    const published = exported.items[0].path!;
+    assert.equal((await inspectImage(published)).sha256, artifact.sha256);
+    assert.deepEqual(await readdir(env.outputs), [path.basename(published)]);
+
+    // A crash after the copy but before the receipt commit adopts the exact file once.
+    const record = service.db.get<any>('exports', input.export_id);
+    record.snapshot.state = 'copying';
+    record.snapshot.items[0] = { ...record.snapshot.items[0], state: 'pending', path: null };
+    service.db.put('exports', input.export_id, record);
+    exporter = new Exporter(service.db, new Roots([env.outputs]), noLinks);
+    exporter.recover();
+    await exporter.idle();
+    const adopted = service.db.get<any>('exports', input.export_id).snapshot;
+    assert.equal(adopted.state, 'succeeded');
+    assert.equal(adopted.items[0].path, published);
+    assert.deepEqual(await readdir(env.outputs), [path.basename(published)]);
+
+    // Different bytes at a copied target are someone else's file: conflict, never delete.
+    service.db.put('exports', input.export_id, record);
+    const foreign = await sharp({
+      create: { width: 4, height: 4, channels: 3, background: '#000000' },
+    })
+      .png()
+      .toBuffer();
+    await writeFile(published, foreign);
+    exporter = new Exporter(service.db, new Roots([env.outputs]), noLinks);
+    exporter.recover();
+    await exporter.idle();
+    const conflict = service.db.get<any>('exports', input.export_id).snapshot;
+    assert.equal(conflict.items[0].state, 'failed');
+    assert.equal(conflict.items[0].error.code, 'EXPORT_CONFLICT');
+    assert.deepEqual(await readFile(published), foreign);
   } finally {
     await service.close();
   }

@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { copyFile, link, unlink, lstat, open } from 'node:fs/promises';
+import { copyFile, link as hardLink, unlink, lstat, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type { ContractTypes } from '../../contracts/src';
 import { Database } from './database';
@@ -22,6 +22,8 @@ interface ExportRecord {
   snapshot: Export;
   targets: Record<string, string>;
   temps: Record<string, string>;
+  // Items published by exclusive copy because the volume refused a hard link.
+  copied?: Record<string, true>;
 }
 export class Exporter {
   private serial = new Serial();
@@ -29,6 +31,7 @@ export class Exporter {
   constructor(
     private db: Database,
     private roots: Roots,
+    private link: (existing: string, target: string) => Promise<void> = hardLink,
   ) {}
   recover() {
     for (const record of this.db.all<ExportRecord>('exports'))
@@ -108,6 +111,41 @@ export class Exporter {
           : 'partial';
     this.db.put('exports', record.snapshot.export_id, record);
   }
+  // Publish without replacing anything: an atomic hard link where the volume supports it,
+  // otherwise (FAT32, exFAT and some network shares) an exclusive copy verified in place.
+  private async publish(
+    record: ExportRecord,
+    artifactId: string,
+    temporary: string,
+    target: string,
+    sha256: string,
+  ) {
+    try {
+      await this.link(temporary, target);
+      return;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === 'EEXIST') throw new Fault('EXPORT_CONFLICT');
+    }
+    record.copied = { ...record.copied, [artifactId]: true };
+    this.save(record); // Mark before the target can exist so recovery knows how it was made.
+    await copyFile(temporary, target, constants.COPYFILE_EXCL).catch((e) => {
+      if (e.code === 'EEXIST') throw new Fault('EXPORT_CONFLICT');
+      throw e;
+    });
+    // The exclusive copy created this file, so a failed verification may remove it.
+    try {
+      const handle = await open(target, 'r+');
+      try {
+        await handle.sync();
+      } finally {
+        await handle.close();
+      }
+      if ((await inspectImage(target)).sha256 !== sha256) throw new Fault('IO_ERROR');
+    } catch {
+      await unlink(target).catch(() => {});
+      throw new Fault('IO_ERROR', 'retry_export', true);
+    }
+  }
   private async copy(id: string) {
     const record = this.db.get<ExportRecord>('exports', id)!;
     for (const item of record.snapshot.items) {
@@ -159,7 +197,12 @@ export class Exporter {
             throw e;
           },
         );
-        if (exists) {
+        if (exists && record.copied?.[item.artifact_id]) {
+          // A copy has no inode identity; adopt only exact bytes and never delete the file.
+          await this.roots.check(target);
+          if ((await inspectImage(target)).sha256 !== artifact.sha256)
+            throw new Fault('EXPORT_CONFLICT');
+        } else if (exists) {
           // Adopt only our own published hard link across a DB-commit crash gap.
           await this.roots.check(target);
           const [published, staged] = await Promise.all([
@@ -187,10 +230,7 @@ export class Exporter {
             await handle.close();
           }
           await this.roots.check(destination, true);
-          await link(temporary, target).catch((e) => {
-            if (e.code === 'EEXIST') throw new Fault('EXPORT_CONFLICT');
-            throw e;
-          });
+          await this.publish(record, item.artifact_id, temporary, target, artifact.sha256);
         }
         item.state = 'exported';
         item.path = target;
