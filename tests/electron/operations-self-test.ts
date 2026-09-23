@@ -217,6 +217,40 @@ export async function operationsSelfTest(
   await ui.evaluate(`update()`);
   assert.deepEqual(errors, []);
   pass('dashboard-busy-attention-recovery-controls-no-renderer-errors');
+  const crash = async () => {
+    const gone = new Promise((resolve) => view.webContents.once('render-process-gone', resolve));
+    view.webContents.forcefullyCrashRenderer();
+    await gone;
+  };
+  const recovered = async () => {
+    await until(
+      async () =>
+        !view.webContents.isCrashed() &&
+        view.webContents.debugger.isAttached() &&
+        service.engine.suspended === null,
+      Boolean,
+      15000,
+    );
+    const reply = await view.webContents.debugger.sendCommand('Runtime.evaluate', {
+      expression: '1 + 1',
+      returnByValue: true,
+    });
+    assert.equal(reply.result.value, 2);
+  };
+  await crash();
+  await recovered();
+  pass('renderer-crash-reloads-page-reattaches-debugger-and-resumes');
+  await crash();
+  await until(
+    async () => service.engine.suspended,
+    (reason) => reason === 'ADAPTER_UNAVAILABLE',
+    5000,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+  assert.equal(view.webContents.isCrashed(), true);
+  await ui.evaluate(`window.bridge.action('reconnect')`);
+  await recovered();
+  pass('repeated-renderer-crash-waits-for-manual-reconnect-which-reloads');
   await durableJson(path.join(profile, 'self-test-operations.json'), {
     result: 'passed',
     checks: [
