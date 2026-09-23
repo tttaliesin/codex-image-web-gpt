@@ -34,8 +34,51 @@ export class Exporter {
     private link: (existing: string, target: string) => Promise<void> = hardLink,
   ) {}
   recover() {
+    // Queued ahead of any copy, so no settled record changes while it is swept.
+    void this.serial.run(() => this.sweep()).catch(() => {});
     for (const record of this.db.select<ExportRecord>('exports', where.copyingExport))
       this.kick(record.snapshot.export_id);
+  }
+  // Temps live in the user's folder. A crash can leave one behind a settled item; only a
+  // temp still hard-linked to the target of an unexported item is kept, as adoption evidence.
+  private async sweep() {
+    for (const record of this.db.select<ExportRecord>('exports', where.exportTemps)) {
+      if (record.snapshot.state === 'copying') continue;
+      for (const [artifactId, temporary] of Object.entries(record.temps)) {
+        const item = record.snapshot.items.find((i) => i.artifact_id === artifactId);
+        const target = record.targets[artifactId];
+        const [staged, published] = await Promise.all([
+          lstat(temporary, { bigint: true }).catch(() => undefined),
+          target ? lstat(target, { bigint: true }).catch(() => undefined) : undefined,
+        ]);
+        if (
+          item?.state !== 'exported' &&
+          staged &&
+          published &&
+          staged.ino === published.ino &&
+          staged.dev === published.dev
+        )
+          continue;
+        try {
+          if (staged) {
+            await this.roots.check(temporary);
+            await unlink(temporary);
+          }
+          delete record.temps[artifactId];
+        } catch {
+          /* Keep the entry; a later startup retries once the folder is available. */
+        }
+      }
+      this.db.put('exports', record.snapshot.export_id, record); // Internal only: no revision.
+    }
+  }
+  private async discard(record: ExportRecord, artifactId: string) {
+    const temporary = record.temps[artifactId];
+    if (!temporary) return;
+    await unlink(temporary).catch((e) => {
+      if (e.code !== 'ENOENT') throw e;
+    });
+    delete record.temps[artifactId];
   }
   async idle() {
     await this.serial.run(() => undefined);
@@ -153,6 +196,7 @@ export class Exporter {
       item.state = 'pending';
       item.error = null;
       this.save(record);
+      let published = false;
       try {
         const artifact = this.db.get<Artifact>('artifacts', item.artifact_id);
         if (!artifact) throw new Fault('NOT_FOUND');
@@ -187,7 +231,7 @@ export class Exporter {
           record.temps[item.artifact_id] = path.join(destination, `.${id}-${randomUUID()}.part`);
           this.save(record); // Reserve exact name and private temp before creating files.
         }
-        const temporary = record.temps[item.artifact_id]!;
+        let temporary = record.temps[item.artifact_id];
         const exists = await lstat(target).then(
           () => true,
           (e) => {
@@ -203,21 +247,28 @@ export class Exporter {
         } else if (exists) {
           // Adopt only our own published hard link across a DB-commit crash gap.
           await this.roots.check(target);
-          const [published, staged] = await Promise.all([
+          const [linked, staged] = await Promise.all([
             lstat(target, { bigint: true }),
-            lstat(temporary, { bigint: true }).catch(() => undefined),
+            temporary ? lstat(temporary, { bigint: true }).catch(() => undefined) : undefined,
           ]);
           if (
             !staged ||
-            published.ino !== staged.ino ||
-            published.dev !== staged.dev ||
+            linked.ino !== staged.ino ||
+            linked.dev !== staged.dev ||
             (await inspectImage(target)).sha256 !== artifact.sha256
           )
             throw new Fault('EXPORT_CONFLICT');
         } else {
-          await unlink(temporary).catch((e) => {
-            if (e.code !== 'ENOENT') throw e;
-          });
+          if (temporary)
+            await unlink(temporary).catch((e) => {
+              if (e.code !== 'ENOENT') throw e;
+            });
+          else {
+            // A failed attempt removed its temp; record a fresh one before creating it.
+            temporary = path.join(destination, `.${id}-${randomUUID()}.part`);
+            record.temps[item.artifact_id] = temporary;
+            this.save(record);
+          }
           await copyFile(artifact.path, temporary, constants.COPYFILE_EXCL);
           if ((await inspectImage(temporary)).sha256 !== artifact.sha256)
             throw new Fault('IO_ERROR', 'retry_export', true);
@@ -230,13 +281,18 @@ export class Exporter {
           await this.roots.check(destination, true);
           await this.publish(record, item.artifact_id, temporary, target, artifact.sha256);
         }
+        published = true;
         item.state = 'exported';
         item.path = target;
         item.sha256 = artifact.sha256;
         item.error = null;
         this.save(record);
-        await unlink(temporary).catch(() => {});
+        // The receipt is durable; a temp left by a failure here is swept at startup.
+        await this.discard(record, item.artifact_id).catch(() => {});
+        this.db.put('exports', id, record);
       } catch (error) {
+        // An unpublished temp is never needed again; a published one proves adoption.
+        if (!published) await this.discard(record, item.artifact_id).catch(() => {});
         item.state = 'failed';
         item.path = null;
         item.sha256 = null;

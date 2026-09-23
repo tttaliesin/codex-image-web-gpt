@@ -34,6 +34,7 @@ export const where = {
     sql: "json_extract(value, '$.snapshot.state') = 'copying'",
     index: 'export_copying',
   },
+  exportTemps: { sql: "json_extract(value, '$.temps') != '{}'", index: 'export_temps' },
   // Exports are few and small; this only avoids parsing every record in JavaScript.
   exportTarget: {
     sql: "EXISTS (SELECT 1 FROM json_each(value, '$.targets') WHERE json_each.value = ?)",
@@ -74,6 +75,7 @@ export class Database {
         CREATE INDEX IF NOT EXISTS job_session ON jobs(json_extract(value, '$.snapshot.session_id'));
         CREATE INDEX IF NOT EXISTS session_manual ON sessions(id) WHERE ${where.manualSession.sql};
         CREATE INDEX IF NOT EXISTS export_copying ON exports(id) WHERE ${where.copyingExport.sql};
+        CREATE INDEX IF NOT EXISTS export_temps ON exports(id) WHERE ${where.exportTemps.sql};
         PRAGMA user_version=1;`);
     });
   }
