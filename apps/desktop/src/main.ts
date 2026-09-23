@@ -623,7 +623,8 @@ async function start() {
             !webExecution?.busy &&
             view.webContents.getURL() !== selected.conversation_url
           )
-            await view.webContents.loadURL(
+            await loadPageDocument(
+              view.webContents,
               fixture
                 ? selected.conversation_url.replace('https://chatgpt.com', fixture.origin)
                 : selected.conversation_url,
@@ -642,7 +643,7 @@ async function start() {
                 ? (fixture?.origin ?? 'https://chatgpt.com/')
                 : null;
             if (destination && view.webContents.getURL() !== destination)
-              await view.webContents.loadURL(destination);
+              await loadPageDocument(view.webContents, destination);
             showBrowser();
           } else window!.hide();
         },
@@ -658,7 +659,9 @@ async function start() {
     const restoredManual = operations.snapshot().session;
     if (restoredManual?.control_owner === 'manual' && restoredManual.conversation_url) {
       desktop.select('browser');
-      await view.webContents.loadURL(
+      // A failed load must not stop startup; the page shows its own error and can be retried.
+      await loadPageDocument(
+        view.webContents,
         fixture
           ? restoredManual.conversation_url.replace('https://chatgpt.com', fixture.origin)
           : restoredManual.conversation_url,
