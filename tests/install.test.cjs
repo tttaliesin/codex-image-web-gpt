@@ -255,3 +255,107 @@ test('shared config: actual edits to owned settings are rejected without writes'
     assert.deepEqual(await fs.readFile(path.join(root, 'integration.json')), receipt);
   }
 });
+
+async function foreignSkillFixture(name) {
+  const root = path.join(base, `${name}-root`),
+    codex = path.join(base, `${name}-codex`),
+    skill = path.join(base, `${name}-skills/imagegen`),
+    bundled = path.join(base, 'bundled/SKILL.md');
+  await install.install({ root, packageDirectory: await fixture(`0.1.0-${name}`) });
+  await fs.mkdir(codex, { recursive: true });
+  await fs.writeFile(path.join(codex, 'config.toml'), '# user config\n');
+  await fs.mkdir(path.join(skill, 'references'), { recursive: true });
+  await fs.writeFile(path.join(skill, 'SKILL.md'), '---\nname: imagegen\n---\nuser skill');
+  await fs.writeFile(path.join(skill, 'references/notes.md'), 'user notes');
+  return { root, codex, skill, bundled, original: await install.files(skill) };
+}
+// Lets the given rename happen, then fails as if the process stopped right after it.
+async function crashAfterRename(from, run) {
+  const promises = require('node:fs/promises');
+  const rename = promises.rename;
+  promises.rename = async (source, target) => {
+    await rename(source, target);
+    if (path.resolve(source) === path.resolve(from())) throw Error('FIXTURE_CRASH');
+  };
+  try {
+    await assert.rejects(run(), /FIXTURE_CRASH/);
+  } finally {
+    promises.rename = rename;
+  }
+}
+const present = (file) =>
+  fs.stat(file).then(
+    () => true,
+    () => false,
+  );
+
+test('a foreign imagegen skill moves aside only with consent and returns on disconnect', async () => {
+  const { root, codex, skill, bundled, original } = await foreignSkillFixture('replace');
+  const configFile = path.join(codex, 'config.toml');
+  await assert.rejects(
+    install.register({ root, codex, skill, bundled }),
+    /EXISTING_SKILL_CONFLICT/,
+  );
+  assert.deepEqual(await install.files(skill), original);
+  assert.equal(await fs.readFile(configFile, 'utf8'), '# user config\n');
+
+  const registered = await install.register({ root, codex, skill, bundled, replaceSkill: true });
+  const backup = registered.replacedSkill;
+  assert.ok(backup.startsWith(path.join(root, 'backups') + path.sep));
+  assert.deepEqual(await install.files(backup), original);
+  assert.equal((await fs.readFile(path.join(skill, 'SKILL.md'), 'utf8')).includes('fixture'), true);
+  assert.equal(await present(path.join(root, 'skill-replacement.json')), false);
+  // Registering again keeps the record of what was moved aside.
+  await install.register({ root, codex, skill, bundled });
+  assert.equal(
+    (await install.json(path.join(root, 'integration.json'))).replacedSkill.path,
+    backup,
+  );
+
+  const removed = await install.unregister({ root });
+  assert.equal(removed.restoredSkill, skill);
+  assert.deepEqual(await install.files(skill), original);
+  assert.equal(await present(backup), false);
+  assert.equal(TOML.parse(await fs.readFile(configFile, 'utf8')).mcp_servers, undefined);
+});
+
+test('an installed skill edited later is never replaced, even with consent', async () => {
+  const { root, codex, skill, bundled } = await foreignSkillFixture('edited');
+  await install.register({ root, codex, skill, bundled, replaceSkill: true });
+  await install.unregister({ root });
+  await fs.rm(skill, { recursive: true });
+  await install.register({ root, codex, skill, bundled });
+  await fs.appendFile(path.join(skill, 'SKILL.md'), 'user edit');
+  const edited = await install.files(skill);
+  await assert.rejects(
+    install.register({ root, codex, skill, bundled, replaceSkill: true }),
+    /INSTALLED_SKILL_CHANGED/,
+  );
+  assert.deepEqual(await install.files(skill), edited);
+});
+
+test('an interrupted skill replacement or restore keeps the user skill recoverable', async () => {
+  const { root, codex, skill, bundled, original } = await foreignSkillFixture('interrupted');
+  // Stops right after the user's skill moved aside, before our skill or the receipt exist.
+  await crashAfterRename(
+    () => skill,
+    () => install.register({ root, codex, skill, bundled, replaceSkill: true }),
+  );
+  assert.equal(await present(skill), false);
+  const journal = await install.json(path.join(root, 'skill-replacement.json'));
+  assert.deepEqual(await install.files(journal.path), original);
+  // Continuing needs no second consent and records the backup from the journal.
+  const registered = await install.register({ root, codex, skill, bundled });
+  assert.equal(registered.replacedSkill, journal.path);
+
+  // Stops right after the user's skill is back, before the receipt is final.
+  await crashAfterRename(
+    () => journal.path,
+    () => install.unregister({ root }),
+  );
+  assert.deepEqual(await install.files(skill), original);
+  const finished = await install.unregister({ root });
+  assert.equal(finished.restoredSkill, skill);
+  assert.deepEqual(await install.files(skill), original);
+  assert.equal((await install.json(path.join(root, 'integration.json'))).active, false);
+});

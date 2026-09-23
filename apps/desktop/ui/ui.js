@@ -57,7 +57,7 @@ const setupErrors = {
   OUTPUT_FOLDER_REQUIRED: '먼저 결과를 저장할 폴더를 골라주세요.',
   PACKAGED_APP_REQUIRED: 'Codex 연결은 다운로드한 배포 앱에서 사용할 수 있어요.',
   EXISTING_SKILL_CONFLICT:
-    '기존 imagegen 스킬과 충돌해요. 기존 파일은 보존했습니다. 사용 중인 스킬을 확인해 주세요.',
+    '같은 위치에 다른 imagegen 스킬이 있어요. 기존 파일은 그대로 두었어요. 기존 스킬 백업 후 연결을 누르면 백업하고 연결합니다.',
   EXISTING_CONFIG_CONFLICT: '기존 Codex 연결 설정과 충돌해요. 기존 설정을 변경하지 않았습니다.',
   INSTALLED_SKILL_CHANGED: '설치 후 수정된 스킬이 있어요. 수정한 내용은 보존했습니다.',
   SKILL_UPDATE_REQUIRES_UNREGISTER:
@@ -110,11 +110,13 @@ function renderSetup(state) {
     '#setup-codex-hint',
     !setup.available
       ? '소스 실행 중입니다. Codex 연결은 배포 앱에서 진행하세요.'
-      : connected
-        ? '설정 등록과 로컬 연결 확인이 끝났어요. Codex를 한 번 다시 시작해 주세요.'
-        : setup.registered
-          ? '설정이 등록됐어요. 연결 확인을 눌러 사용할 준비가 됐는지 확인하세요.'
-          : '연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.',
+      : setup.skill_conflict && !setup.registered
+        ? `이 위치에 다른 imagegen 스킬이 있어요 · ${setup.skill_conflict}`
+        : connected
+          ? '설정 등록과 로컬 연결 확인이 끝났어요. Codex를 한 번 다시 시작해 주세요.'
+          : setup.registered
+            ? '설정이 등록됐어요. 연결 확인을 눌러 사용할 준비가 됐는지 확인하세요.'
+            : '연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.',
   );
   text(
     '#integration-setting',
@@ -132,6 +134,8 @@ function renderSetup(state) {
     'pick-output': state.mcp_enabled && !state.busy,
     'remove-input': state.mcp_enabled && !state.busy,
     connect: setup.available && folders && login && state.mcp_enabled,
+    'replace-skill':
+      setup.available && folders && login && state.mcp_enabled && !!setup.skill_conflict,
     disconnect: setup.registered || !!setup.error,
     check: setup.registered && state.mcp_enabled,
     'copy-example': folders,
@@ -164,6 +168,7 @@ function renderSetup(state) {
       button.textContent = setup.update_available ? '앱 업데이트' : 'Codex에 연결';
     }
     if (action === 'check') button.hidden = !setup.registered;
+    if (action === 'replace-skill') button.hidden = !setup.skill_conflict || setup.registered;
   });
 }
 
@@ -511,7 +516,7 @@ document.addEventListener('click', async (event) => {
   setupPending = true;
   text(
     '#setup-feedback',
-    button.dataset.setup === 'connect'
+    ['connect', 'replace-skill'].includes(button.dataset.setup)
       ? '앱을 설치하고 Codex 연결 설정을 등록하고 있어요…'
       : '설정을 적용하고 있어요…',
   );
@@ -531,7 +536,9 @@ document.addEventListener('click', async (event) => {
           : result?.registered
             ? 'Codex 연결 설정을 등록했어요. Codex를 한 번 다시 시작해 주세요.'
             : button.dataset.setup === 'disconnect'
-              ? '연결을 해제했어요. 로그인과 작업 기록은 보존됐습니다.'
+              ? result?.restored_skill
+                ? '연결을 해제하고 기존 imagegen 스킬을 원래 위치로 되돌렸어요. 로그인과 작업 기록은 보존됐습니다.'
+                : '연결을 해제했어요. 로그인과 작업 기록은 보존됐습니다.'
               : '폴더 설정을 저장했어요. 바로 적용됩니다.';
     text('#setup-feedback', message);
     if (message) toast(message);

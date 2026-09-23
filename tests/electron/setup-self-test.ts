@@ -136,8 +136,61 @@ export async function setupSelfTest(
     ]);
     assert.deepEqual(service.options.inputRoots, [input]);
     pass('native-folder-picker-cancel-select-persist-and-live-permissions');
+    // A foreign imagegen skill in the target slot is shown with its path, never moved silently.
+    await mkdir(skill, { recursive: true });
+    await writeFile(path.join(skill, 'SKILL.md'), '---\nname: imagegen\n---\nforeign skill');
+    const foreignSkill = await installer.files(skill);
     await click('#setup-guide [data-setup="connect"]');
-    await until(async () => setup.registered && setup.checked, Boolean, 25000);
+    await until(async () => setup.snapshot().skill_conflict === skill, Boolean, 25000);
+    await until(() => ui.evaluate<boolean>('!setupPending'), Boolean, 3000);
+    await ui.evaluate('update()');
+    assert.equal(
+      await ui.evaluate(
+        `document.querySelector('#setup-guide [data-setup="replace-skill"]').hidden`,
+      ),
+      false,
+    );
+    assert.ok(
+      (
+        await ui.evaluate<string>(`document.querySelector('#setup-codex-hint').textContent`)
+      ).includes(skill),
+    );
+    assert.ok(
+      (await ui.evaluate<string>(`document.querySelector('#setup-feedback').textContent`)).includes(
+        '기존 스킬 백업 후 연결',
+      ),
+    );
+    assert.deepEqual(await installer.files(skill), foreignSkill);
+    await ui.evaluate(
+      `document.querySelector('#setup-codex').scrollIntoView({block:'center'}); new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    );
+    await writeFile(
+      path.join(profile, 'skill-conflict.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    const originalMessageBox = dialog.showMessageBox;
+    let confirmations: string[] = [];
+    let answer = 1;
+    dialog.showMessageBox = (async (_window: unknown, options: Electron.MessageBoxOptions) => {
+      confirmations.push(options.detail ?? '');
+      return { response: answer, checkboxChecked: false };
+    }) as typeof dialog.showMessageBox;
+    try {
+      await click('#setup-guide [data-setup="replace-skill"]');
+      await until(async () => confirmations.length === 1, Boolean, 3000);
+      await until(() => ui.evaluate<boolean>('!setupPending'), Boolean, 3000);
+      assert.ok(confirmations[0]!.includes(skill));
+      assert.equal(setup.registered, false);
+      assert.deepEqual(await installer.files(skill), foreignSkill);
+      answer = 0;
+      await click('#setup-guide [data-setup="replace-skill"]');
+      await until(async () => setup.registered && setup.checked, Boolean, 25000);
+    } finally {
+      dialog.showMessageBox = originalMessageBox;
+      confirmations = [];
+    }
+    assert.equal(setup.snapshot().skill_conflict, null);
+    pass('foreign-skill-conflict-shows-path-and-replaces-only-after-native-confirmation');
     await until(() => ui.evaluate<boolean>('!setupPending'), Boolean, 3000);
     const registered = await readFile(path.join(codex, 'config.toml'), 'utf8');
     assert.ok(registered.startsWith(original.trimEnd()));
@@ -198,6 +251,7 @@ export async function setupSelfTest(
       require('smol-toml').parse(original + foreignSettings),
     );
     await readFile(path.join(profile, 'm1/auth/mcp-token.enc'));
+    assert.deepEqual(await installer.files(skill), foreignSkill);
     pass('revoke-folder-and-disconnect-preserve-original-settings-and-login-profile');
     assert.equal(await new Cdp(view.webContents).evaluate(`typeof window.bridge`), 'undefined');
     assert.deepEqual(errors, []);

@@ -180,7 +180,9 @@ function integrationBlock({ root, state, bundled }) {
   };
   return `${begin}\n${TOML.stringify(config).trim()}\n${end}`;
 }
-async function register({ root, codex, skill, bundled }) {
+// replaceSkill: the user agreed to move a foreign skill at `skill` into this install's backups;
+// unregister puts it back. Without it, any skill this install did not place is left untouched.
+async function register({ root, codex, skill, bundled, replaceSkill = false }) {
   root = path.resolve(root);
   codex = path.resolve(codex);
   skill = path.resolve(skill);
@@ -229,10 +231,34 @@ async function register({ root, codex, skill, bundled }) {
     throw Error('EXISTING_CONFIG_CONFLICT');
   const source = path.join(state.directory, 'runtime/resources/app/skills/imagegen');
   const sourceFiles = await files(source);
+  // Written before a foreign skill moves, so a crash can never lose where it went.
+  const journalFile = path.join(root, 'skill-replacement.json');
+  const journal = (await exists(journalFile)) ? await json(journalFile) : null;
+  let replacedSkill =
+    journal?.product === product &&
+    journal.skill === skill &&
+    (await exists(inside(root, journal.path)))
+      ? { path: journal.path, files: journal.files }
+      : null;
+  let moveSkill = false;
   if (await exists(skill)) {
-    if (!prior?.active || !isDeepStrictEqual(await files(skill), prior.skillFiles))
-      throw Error('EXISTING_SKILL_CONFLICT');
-    if (!isDeepStrictEqual(sourceFiles, prior.skillFiles))
+    const current = await files(skill);
+    const ours = prior?.active
+      ? isDeepStrictEqual(current, prior.skillFiles)
+      : !!replacedSkill && isDeepStrictEqual(current, sourceFiles);
+    if (!ours) {
+      // Our own skill edited after install, or a partial copy after a moved one: never replace.
+      if (prior?.active || replacedSkill) throw Error('INSTALLED_SKILL_CHANGED');
+      if (!replaceSkill) throw Error('EXISTING_SKILL_CONFLICT');
+      replacedSkill = {
+        path: inside(
+          root,
+          path.join(root, 'backups', `imagegen-replaced-${Date.now()}-${randomUUID()}`),
+        ),
+        files: current,
+      };
+      moveSkill = true;
+    } else if (prior?.active && !isDeepStrictEqual(sourceFiles, prior.skillFiles))
       throw Error('SKILL_UPDATE_REQUIRES_UNREGISTER');
   }
   const updated = unchanged ? text : base.replace(/\s*$/, '') + '\n\n' + block + '\n';
@@ -249,6 +275,11 @@ async function register({ root, codex, skill, bundled }) {
   }
   const backup = path.join(root, 'backups', `codex-${Date.now()}-${randomUUID()}.toml`);
   await atomic(backup, text);
+  if (moveSkill) {
+    await atomic(journalFile, { product, skill, ...replacedSkill });
+    await fs.mkdir(path.dirname(replacedSkill.path), { recursive: true });
+    await fs.rename(skill, replacedSkill.path);
+  }
   if (!(await exists(skill))) {
     await fs.mkdir(path.dirname(skill), { recursive: true });
     await fs.cp(source, skill, { recursive: true, force: false, errorOnExist: true });
@@ -271,12 +302,21 @@ async function register({ root, codex, skill, bundled }) {
     skillFiles: sourceFiles,
     block,
     backup,
+    // A registration that continues an earlier one keeps the skill it already moved aside.
+    replacedSkill: replacedSkill ?? (prior?.active ? (prior.replacedSkill ?? null) : null),
   };
   // Save recovery information before changing configuration.
   await atomic(receiptFile, receipt);
   await atomic(configFile, updated);
   await atomic(receiptFile, { ...receipt, phase: 'registered' });
-  return { registered: true, config: configFile, skill, backup };
+  await fs.rm(journalFile, { force: true });
+  return {
+    registered: true,
+    config: configFile,
+    skill,
+    backup,
+    replacedSkill: receipt.replacedSkill?.path ?? null,
+  };
 }
 async function unregister({ root }) {
   root = path.resolve(root);
@@ -297,7 +337,14 @@ async function unregister({ root }) {
       ? receipt.savedSkill
       : path.join(root, 'backups', `imagegen-${Date.now()}-${randomUUID()}`),
   );
-  const currentSkill = (await exists(receipt.skill)) ? receipt.skill : savedSkill;
+  const replaced = receipt.replacedSkill ? inside(root, receipt.replacedSkill.path) : null;
+  // A removal interrupted after restoring the user's skill has already moved ours aside.
+  const restored =
+    receipt.phase === 'unregistering' &&
+    replaced &&
+    !(await exists(replaced)) &&
+    (await exists(receipt.skill));
+  const currentSkill = !restored && (await exists(receipt.skill)) ? receipt.skill : savedSkill;
   if (!isDeepStrictEqual(await files(currentSkill), receipt.skillFiles))
     throw Error('INSTALLED_SKILL_CHANGED');
   await noLinks(savedSkill);
@@ -311,8 +358,15 @@ async function unregister({ root }) {
   });
   await atomic(configFile, updated);
   if (currentSkill !== savedSkill) await fs.rename(path.resolve(receipt.skill), savedSkill);
+  // Put back the skill the user agreed to move aside, only if its slot is still free.
+  let restoredSkill = restored ? receipt.skill : null;
+  if (replaced && !restored && !(await exists(receipt.skill)) && (await exists(replaced))) {
+    await fs.rename(replaced, path.resolve(receipt.skill));
+    restoredSkill = receipt.skill;
+  }
   await atomic(receiptFile, { ...receipt, active: false, phase: 'unregistered', savedSkill });
-  return { registered: false, preserved_profile: true, savedSkill };
+  await fs.rm(path.join(root, 'skill-replacement.json'), { force: true });
+  return { registered: false, preserved_profile: true, savedSkill, restoredSkill };
 }
 async function rollback({ root }) {
   root = path.resolve(root);

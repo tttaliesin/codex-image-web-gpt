@@ -82,6 +82,8 @@ class DesktopSetup {
     this.checked = false;
     this.integrationError = null;
     this.updateAvailable = false;
+    // Path of a foreign imagegen skill found by the last connect, shown so the user can decide.
+    this.skillConflict = null;
   }
   async initialize() {
     this.configuration = await optionalJson(this.options.config);
@@ -105,6 +107,7 @@ class DesktopSetup {
       working: this.working,
       error: this.integrationError,
       update_available: this.updateAvailable,
+      skill_conflict: this.skillConflict,
     };
   }
   async refresh() {
@@ -181,7 +184,7 @@ class DesktopSetup {
       return { saved: true };
     });
   }
-  async connect() {
+  async connect({ replaceSkill = false } = {}) {
     return this.exclusive(async () => {
       if (!this.options.packageDirectory) throw Error('PACKAGED_APP_REQUIRED');
       if (!this.configuration.export_roots.length) throw Error('OUTPUT_FOLDER_REQUIRED');
@@ -206,7 +209,13 @@ class DesktopSetup {
           throw e;
         },
       );
-      await install.register({ root: this.options.root, codex, skill, bundled });
+      try {
+        await install.register({ root: this.options.root, codex, skill, bundled, replaceSkill });
+      } catch (error) {
+        this.skillConflict = error.message === 'EXISTING_SKILL_CONFLICT' ? skill : null;
+        throw error;
+      }
+      this.skillConflict = null;
       await this.options.shortcut?.(state);
       await this.refresh();
       this.checked = false;
@@ -215,10 +224,14 @@ class DesktopSetup {
   }
   async disconnect() {
     return this.exclusive(async () => {
-      await install.unregister({ root: this.options.root });
+      const result = await install.unregister({ root: this.options.root });
       this.checked = false;
       await this.refresh();
-      return { registered: false, restart_required: true };
+      return {
+        registered: false,
+        restart_required: true,
+        restored_skill: result.restoredSkill ?? null,
+      };
     });
   }
   async check() {
