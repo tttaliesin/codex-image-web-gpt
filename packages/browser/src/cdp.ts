@@ -20,6 +20,14 @@ export class Cdp {
     if (reply.exceptionDetails) throw new Error('UI_CHANGED');
     return reply.result.value as T;
   }
+  // Callers observe readiness themselves. A client-side redirect that supersedes the load
+  // (ERR_ABORTED) is not a failure; any other load error is reported as PAGE_LOAD_FAILED.
+  async load(url: string) {
+    this.guard();
+    await this.contents.loadURL(url).catch((error: { code?: string } | undefined) => {
+      if (error?.code !== 'ERR_ABORTED') throw new Error('PAGE_LOAD_FAILED');
+    });
+  }
   async files(selector: string, paths: string[]) {
     const { root } = await this.send('DOM.getDocument');
     const { nodeIds } = await this.send('DOM.querySelectorAll', { nodeId: root.nodeId, selector });

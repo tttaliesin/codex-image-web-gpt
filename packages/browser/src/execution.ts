@@ -141,7 +141,7 @@ export class BrowserExecution implements ExecutionPort {
     context.check();
     const expectedOrigin = this.adapter.fixtureOrigin ?? 'https://chatgpt.com';
     if (new URL(url).origin !== expectedOrigin) throw new Fault('STATE_CONFLICT');
-    if (this.adapter.cdp.contents.getURL() !== url) await this.adapter.cdp.contents.loadURL(url);
+    if (this.adapter.cdp.contents.getURL() !== url) await this.adapter.cdp.load(url);
     return until(
       () => this.adapter.snapshot(),
       (snapshot) => {
@@ -380,6 +380,14 @@ export class BrowserExecution implements ExecutionPort {
           message: 'Reconnect the app debugger and reconcile this page.',
           retryable: true,
           next_action: 'reconcile',
+        },
+        PAGE_LOAD_FAILED: {
+          code: 'ADAPTER_UNAVAILABLE',
+          message: 'The ChatGPT page could not be loaded. Check the connection and try again.',
+          retryable: true,
+          // Nothing unsent needs reconciliation; a sent request must never be prepared again.
+          next_action:
+            context.job().snapshot.submission_state === 'not_sent' ? 'resume' : 'reconcile',
         },
         OBSERVATION_TIMEOUT: {
           code: 'ADAPTER_UNAVAILABLE',

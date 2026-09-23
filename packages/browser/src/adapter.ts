@@ -278,7 +278,7 @@ export class PageAdapter {
       .find((message) => message.role === 'assistant')!;
     if (!this.fixtureOrigin && response.id.startsWith('request-')) {
       if (!allowIdentityRefresh) throw Error('OUTPUT_IDENTITY_UNSTABLE');
-      await this.cdp.contents.loadURL(url);
+      await this.cdp.load(url);
       await until(
         () => this.snapshot(),
         (value) => value.url === url && value.messages.some((message) => message.id === userId),
