@@ -973,6 +973,36 @@
       }
     },
     {
+      "name": "get-canceled-unknown-released",
+      "valid": true,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "generate",
+            "state": "canceled",
+            "phase": "complete",
+            "submission_state": "unknown",
+            "revision": 4,
+            "terminal": true,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      }
+    },
+    {
       "name": "wait-event-resync",
       "valid": true,
       "tool": "web_image_wait",
@@ -1856,6 +1886,37 @@
         }
       },
       "reason": "Producer snapshot invariant or version violation"
+    },
+    {
+      "name": "sending-remote-released",
+      "valid": false,
+      "tool": "web_image_get",
+      "direction": "output",
+      "payload": {
+        "schema_version": "0.1",
+        "ok": true,
+        "data": {
+          "job": {
+            "job_id": "1d9aa4b5-c7c1-4c08-9ead-f5a2ec91f91f",
+            "request_id": "c35e53a1-dba6-4c55-8bd1-6c20187b094d",
+            "session_id": "eb8d5a5d-c001-46bf-9098-980a278ed77d",
+            "mode": "generate",
+            "state": "running",
+            "phase": "submit",
+            "submission_state": "sending",
+            "revision": 3,
+            "terminal": false,
+            "requires_action": false,
+            "remote_may_continue": false,
+            "artifact_ids": [],
+            "warnings": [],
+            "error": null,
+            "created_at": "2026-09-22T04:00:00Z",
+            "updated_at": "2026-09-22T04:00:00Z"
+          }
+        }
+      },
+      "reason": "Only a canceled job may release an unconfirmed submission"
     },
     {
       "name": "queued-remote-running",

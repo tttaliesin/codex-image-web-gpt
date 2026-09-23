@@ -799,9 +799,14 @@
             "properties": {
               "submission_state": {
                 "enum": ["sending", "unknown"]
+              },
+              "state": {
+                "not": {
+                  "const": "canceled"
+                }
               }
             },
-            "required": ["submission_state"]
+            "required": ["submission_state", "state"]
           },
           "then": {
             "properties": {

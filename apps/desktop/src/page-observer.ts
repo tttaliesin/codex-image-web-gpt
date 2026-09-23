@@ -69,6 +69,7 @@ export async function observePage(options: ObserverOptions) {
           await operations.resume('NETWORK_OFFLINE');
         }
         options.refreshTray();
+        operations.recheckRemote();
         await operations.checkDrain();
       }
       options.execution?.observePage(snapshot);

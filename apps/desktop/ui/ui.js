@@ -280,6 +280,7 @@ function render(state) {
     release: manual,
     reconnect: ops?.suspended === 'ADAPTER_UNAVAILABLE',
     reconcile: !manual && (job?.requires_action || (job?.remote_may_continue && job?.terminal)),
+    'release-remote': !!(job?.terminal && job?.remote_may_continue),
     'resume-job': !manual && job?.requires_action && job?.submission_state !== 'unknown',
     cancel: job && !job.terminal,
     'quit-after': ops && !ops.draining,
@@ -295,7 +296,7 @@ function render(state) {
   $('[data-action="resume-queue"]').hidden = !ops?.paused;
   $('[data-action="takeover"]').hidden = manual;
   $('[data-action="release"]').hidden = !manual;
-  for (const action of ['reconcile', 'resume-job', 'cancel'])
+  for (const action of ['reconcile', 'release-remote', 'resume-job', 'cancel'])
     $(`[data-action="${action}"]`).hidden = !enabled[action];
   $('#operations').hidden = !ops;
   $('#legacy-controls').hidden = state.web_execution;
@@ -323,7 +324,9 @@ function render(state) {
   } else if (job?.terminal && job.remote_may_continue) {
     heading = '기존 결과를 확인해 주세요';
     notice =
-      '로컬 작업은 중단됐지만 웹 생성은 계속될 수 있습니다. 기존 결과를 확인한 뒤 이어갑니다.';
+      job.submission_state === 'confirmed'
+        ? '로컬 작업은 중단됐지만 웹 생성은 계속될 수 있습니다. 같은 대화에서 생성이 끝나면 자동으로 이어갑니다.'
+        : '요청이 전송됐는지 확인할 수 없습니다. ChatGPT 페이지에서 직접 확인한 뒤 웹 생성 종료 확인을 눌러 주세요.';
     statusTone = 'warning';
   } else if (manual) {
     heading = '직접 조작 중입니다';
