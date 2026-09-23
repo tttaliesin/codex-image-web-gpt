@@ -874,3 +874,55 @@ test('M1 an unrecoverable artifact manifest holds only its job instead of blocki
     await service.close();
   }
 });
+
+test('M1 input staging waits only for other submits, never blocks engine commands', async () => {
+  const env = await setup();
+  const { service } = env;
+  let release!: () => void;
+  const staging = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  try {
+    const queued = (await ok(service, 'submit', submit())).job;
+    // Stand in for a long input copy that holds the admission lock.
+    const held = (
+      service as unknown as { admissions: { run(work: () => unknown): Promise<unknown> } }
+    ).admissions.run(() => staging);
+    let settled = false;
+    const pending = service.call('web_image_submit', submit(env.file)).then((result) => {
+      settled = true;
+      return result;
+    });
+    await ok(service, 'status', {});
+    await ok(service, 'session', { request_id: randomUUID(), action: 'create' });
+    const canceled = await ok(service, 'control', {
+      request_id: randomUUID(),
+      job_id: queued.job_id,
+      expected_revision: queued.revision,
+      action: 'cancel',
+    });
+    assert.equal(canceled.job.state, 'canceled');
+    assert.equal(settled, false);
+    release();
+    await held;
+    const accepted = await pending;
+    assert.equal(accepted.ok, true, JSON.stringify(accepted));
+
+    // Shutdown that starts during staging waits for the admission and refuses the job.
+    let finish!: () => void;
+    const late = new Promise<void>((resolve) => {
+      finish = resolve;
+    });
+    const blocking = (
+      service as unknown as { admissions: { run(work: () => unknown): Promise<unknown> } }
+    ).admissions.run(() => late);
+    const refused = service.call('web_image_submit', submit(env.file));
+    service.drain();
+    finish();
+    await blocking;
+    assert.equal(((await refused).error as { code: string }).code, 'STATE_CONFLICT');
+  } finally {
+    release();
+    await service.close();
+  }
+});
