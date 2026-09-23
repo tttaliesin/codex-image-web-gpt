@@ -4,7 +4,13 @@ import { mkdir, copyFile, rename, open, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { validDefinition } from '../../contracts/src';
 import { Engine } from '../../core/src/engine';
-import { Fault, now, type Artifact, type DownloadedFile } from '../../core/src/model';
+import {
+  Fault,
+  now,
+  type Artifact,
+  type DownloadedFile,
+  type JobRecord,
+} from '../../core/src/model';
 import { inspectImage, durableJson, readJson } from './files';
 import { Roots } from './roots';
 
@@ -72,31 +78,61 @@ export class ArtifactStore {
     const directory = path.join(this.directory, 'manifests');
     for (const name of await readdir(directory).catch(() => [] as string[])) {
       if (!name.endsWith('.json')) continue;
-      const jobId = name.slice(0, -5),
-        job = this.engine.job(jobId).snapshot;
-      if (job.terminal || job.submission_state !== 'confirmed') continue;
-      const artifacts = await readJson<Artifact[]>(path.join(directory, name));
-      if (!artifacts.length || artifacts.length > 4) throw new Fault('INPUT_INVALID');
-      for (const artifact of artifacts) {
-        if (!validDefinition('artifact', artifact) || artifact.job_id !== jobId)
-          throw new Fault('INPUT_INVALID');
-        try {
-          await new Roots([path.join(this.directory, 'artifacts', jobId)]).check(artifact.path);
-        } catch (error) {
-          if (!(error instanceof Fault) || error.code !== 'NOT_FOUND') throw error;
-          await new Roots([path.join(this.directory, 'artifacts', jobId)]).check(
-            `${artifact.path}.part`,
-          );
-          if ((await inspectImage(`${artifact.path}.part`)).sha256 !== artifact.sha256)
-            throw new Fault('INPUT_INVALID');
-          await rename(`${artifact.path}.part`, artifact.path);
-        }
-        await new Roots([path.join(this.directory, 'artifacts', jobId)]).check(artifact.path);
-        if ((await inspectImage(artifact.path)).sha256 !== artifact.sha256)
-          throw new Fault('INPUT_INVALID');
+      const jobId = name.slice(0, -5);
+      // One unrecoverable manifest must not keep the app, and every other job, from starting.
+      try {
+        await this.recoverManifest(jobId, path.join(directory, name));
+      } catch {
+        await this.holdForUser(jobId);
       }
-      await this.commit(jobId, artifacts);
     }
+  }
+  // The response already exists on the web, so collecting it again never resubmits.
+  private holdForUser(jobId: string) {
+    return this.engine.serial.run(() =>
+      this.engine.db.transaction(() => {
+        const job = this.engine.db.get<JobRecord>('jobs', jobId)?.snapshot;
+        if (job?.state !== 'reconciling' || job.submission_state !== 'confirmed') return;
+        this.engine.update(
+          jobId,
+          {
+            state: 'waiting_user',
+            error: {
+              code: 'DOWNLOAD_FAILED',
+              message: 'Saved output could not be verified at startup; collect it again.',
+              retryable: true,
+              next_action: 'retry_download',
+            },
+          },
+          'error_changed',
+        );
+      }),
+    );
+  }
+  private async recoverManifest(jobId: string, file: string) {
+    const job = this.engine.job(jobId).snapshot;
+    if (job.terminal || job.submission_state !== 'confirmed') return;
+    const artifacts = await readJson<Artifact[]>(file);
+    if (!artifacts.length || artifacts.length > 4) throw new Fault('INPUT_INVALID');
+    for (const artifact of artifacts) {
+      if (!validDefinition('artifact', artifact) || artifact.job_id !== jobId)
+        throw new Fault('INPUT_INVALID');
+      try {
+        await new Roots([path.join(this.directory, 'artifacts', jobId)]).check(artifact.path);
+      } catch (error) {
+        if (!(error instanceof Fault) || error.code !== 'NOT_FOUND') throw error;
+        await new Roots([path.join(this.directory, 'artifacts', jobId)]).check(
+          `${artifact.path}.part`,
+        );
+        if ((await inspectImage(`${artifact.path}.part`)).sha256 !== artifact.sha256)
+          throw new Fault('INPUT_INVALID');
+        await rename(`${artifact.path}.part`, artifact.path);
+      }
+      await new Roots([path.join(this.directory, 'artifacts', jobId)]).check(artifact.path);
+      if ((await inspectImage(artifact.path)).sha256 !== artifact.sha256)
+        throw new Fault('INPUT_INVALID');
+    }
+    await this.commit(jobId, artifacts);
   }
   private commit(jobId: string, artifacts: Artifact[]) {
     return this.engine.serial.run(() =>

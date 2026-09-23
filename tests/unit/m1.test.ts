@@ -801,3 +801,76 @@ test('M1/M3 download manifest recovers across manual interruption without a new 
     await service.close();
   }
 });
+
+test('M1 an unrecoverable artifact manifest holds only its job instead of blocking startup', async () => {
+  const env = await setup();
+  let service = env.service;
+  try {
+    const job = (await ok(service, 'submit', submit())).job;
+    service.db.transaction(() => {
+      service.engine.update(job.job_id, { state: 'running' });
+      service.engine.update(job.job_id, { submission_state: 'sending', remote_may_continue: true });
+      service.engine.update(job.job_id, { submission_state: 'confirmed', phase: 'download' });
+      const session = service.engine.session(job.session_id);
+      session.conversation_url = 'https://chatgpt.com/c/fixture-lost';
+      service.db.put('sessions', session.session_id, session);
+    });
+    const directory = path.join(env.directory, 'downloads', job.job_id);
+    await mkdir(directory, { recursive: true });
+    const downloaded = path.join(directory, 'fixture.part');
+    await copyFile(env.file, downloaded);
+    const original = service.engine.update.bind(service.engine);
+    service.engine.update = (id, patch, kind) => {
+      if (patch.state === 'succeeded') throw Error('FIXTURE_DB_COMMIT_FAILURE');
+      return original(id, patch, kind);
+    };
+    await assert.rejects(
+      service.artifacts.complete(job.job_id, [
+        {
+          path: downloaded,
+          source: {
+            kind: 'chatgpt_download',
+            session_id: job.session_id,
+            conversation_url: 'https://chatgpt.com/c/fixture-lost',
+            message_id: 'fixture',
+            downloaded_at: now(),
+            web_model_id: null,
+          },
+        },
+      ]),
+      /FIXTURE_DB_COMMIT_FAILURE/,
+    );
+    service.engine.update = original;
+    const manifests = path.join(env.directory, 'manifests');
+    const manifest = JSON.parse(await readFile(path.join(manifests, `${job.job_id}.json`), 'utf8'));
+    // Both the published file and its staging copy are gone, e.g. removed by another program.
+    await unlink(manifest[0].path);
+    await writeFile(path.join(manifests, `${randomUUID()}.json`), JSON.stringify(manifest));
+    await writeFile(path.join(manifests, 'truncated.json'), '[{');
+    await service.close();
+
+    service = new BridgeService(env.options);
+    await service.ready;
+    const held = service.engine.job(job.job_id).snapshot;
+    assert.equal(held.state, 'waiting_user');
+    assert.equal(held.submission_state, 'confirmed');
+    assert.equal(held.error?.code, 'DOWNLOAD_FAILED');
+    assert.equal(held.error?.next_action, 'retry_download');
+    assert.equal((await ok(service, 'status', {})).queue.active_job_id, job.job_id);
+    const resumed = await ok(service, 'control', {
+      request_id: randomUUID(),
+      job_id: job.job_id,
+      expected_revision: held.revision,
+      action: 'resume',
+    });
+    assert.equal(resumed.job.state, 'reconciling');
+
+    // A later startup that still cannot verify the file stays idempotent.
+    await service.close();
+    service = new BridgeService(env.options);
+    await service.ready;
+    assert.equal(service.engine.job(job.job_id).snapshot.state, 'waiting_user');
+  } finally {
+    await service.close();
+  }
+});
