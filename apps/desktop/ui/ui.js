@@ -76,6 +76,8 @@ const setupErrors = {
   CODEX_AUTH_HELPER_FAILED:
     'Codex가 사용할 인증값을 읽지 못했어요. 앱을 다시 연 뒤 연결 확인을 눌러주세요.',
   MCP_CHECK_FAILED: '로컬 연결을 확인하지 못했어요. 앱을 다시 연 뒤 연결 확인을 눌러주세요.',
+  CODEX_SHADOW_COPY:
+    'Codex 앱 전용 저장소에 이전 설치본이 남아 있어 Codex가 다른 인증값을 사용해요. 이전 설치본 정리를 눌러주세요.',
   INTEGRATION_TARGET_CONFLICT:
     '기존 설치 위치와 설정이 달라요. 바탕화면 바로가기로 앱을 다시 열어주세요.',
 };
@@ -110,13 +112,15 @@ function renderSetup(state) {
     '#setup-codex-hint',
     !setup.available
       ? '소스 실행 중입니다. Codex 연결은 배포 앱에서 진행하세요.'
-      : setup.skill_conflict && !setup.registered
-        ? `이 위치에 다른 imagegen 스킬이 있어요 · ${setup.skill_conflict}`
-        : connected
-          ? '설정 등록과 로컬 연결 확인이 끝났어요. Codex를 한 번 다시 시작해 주세요.'
-          : setup.registered
-            ? '설정이 등록됐어요. 연결 확인을 눌러 사용할 준비가 됐는지 확인하세요.'
-            : '연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.',
+      : setup.shadow_copies?.length
+        ? `Codex 전용 저장소에 이전 설치본이 있어요 · ${setup.shadow_copies.join(', ')}`
+        : setup.skill_conflict && !setup.registered
+          ? `이 위치에 다른 imagegen 스킬이 있어요 · ${setup.skill_conflict}`
+          : connected
+            ? '설정 등록과 로컬 연결 확인이 끝났어요. Codex를 한 번 다시 시작해 주세요.'
+            : setup.registered
+              ? '설정이 등록됐어요. 연결 확인을 눌러 사용할 준비가 됐는지 확인하세요.'
+              : '연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.',
   );
   text(
     '#integration-setting',
@@ -136,6 +140,7 @@ function renderSetup(state) {
     connect: setup.available && folders && login && state.mcp_enabled,
     'replace-skill':
       setup.available && folders && login && state.mcp_enabled && !!setup.skill_conflict,
+    'retire-shadow': !!setup.shadow_copies?.length,
     disconnect: setup.registered || !!setup.error,
     check: setup.registered && state.mcp_enabled,
     'copy-example': folders,
@@ -169,6 +174,7 @@ function renderSetup(state) {
     }
     if (action === 'check') button.hidden = !setup.registered;
     if (action === 'replace-skill') button.hidden = !setup.skill_conflict || setup.registered;
+    if (action === 'retire-shadow') button.hidden = !setup.shadow_copies?.length;
   });
 }
 
@@ -531,15 +537,17 @@ document.addEventListener('click', async (event) => {
       ? ''
       : result?.copied
         ? '첫 요청을 복사했어요. Codex에 붙여넣어 주세요.'
-        : result?.verified
-          ? '설정과 로컬 연결을 확인했어요. Codex를 다시 시작하면 사용할 수 있어요.'
-          : result?.registered
-            ? 'Codex 연결 설정을 등록했어요. Codex를 한 번 다시 시작해 주세요.'
-            : button.dataset.setup === 'disconnect'
-              ? result?.restored_skill
-                ? '연결을 해제하고 기존 imagegen 스킬을 원래 위치로 되돌렸어요. 로그인과 작업 기록은 보존됐습니다.'
-                : '연결을 해제했어요. 로그인과 작업 기록은 보존됐습니다.'
-              : '폴더 설정을 저장했어요. 바로 적용됩니다.';
+        : result?.retired
+          ? '이전 설치본의 이름을 바꿨어요. Codex에서 새 대화를 시작하면 연결됩니다.'
+          : result?.verified
+            ? '설정과 로컬 연결을 확인했어요. Codex를 다시 시작하면 사용할 수 있어요.'
+            : result?.registered
+              ? 'Codex 연결 설정을 등록했어요. Codex를 한 번 다시 시작해 주세요.'
+              : button.dataset.setup === 'disconnect'
+                ? result?.restored_skill
+                  ? '연결을 해제하고 기존 imagegen 스킬을 원래 위치로 되돌렸어요. 로그인과 작업 기록은 보존됐습니다.'
+                  : '연결을 해제했어요. 로그인과 작업 기록은 보존됐습니다.'
+                : '폴더 설정을 저장했어요. 바로 적용됩니다.';
     text('#setup-feedback', message);
     if (message) toast(message);
   } catch (error) {

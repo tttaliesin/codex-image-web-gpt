@@ -42,6 +42,59 @@ async function readCodexHeaders(root, run = runFile) {
   }
 }
 
+// An MSIX-packaged app such as Codex desktop sees its own copy of any %LOCALAPPDATA% file that
+// it, or a process it started, once wrote. A copy of this install makes Codex run a stale auth
+// helper or read another profile's token, so the server answers 401 while this app, outside
+// the package, still sees the real files. Only copies that differ from the real file matter.
+const shadowedFiles = {
+  root: ['current.json', 'auth-helper.ps1'],
+  profile: ['m1/auth/mcp-token.enc', 'Local State'],
+};
+function sameFile(name, real, copy) {
+  if (!real) return false;
+  if (name !== 'Local State') return real.equals(copy);
+  // Chromium rewrites Local State freely; only the profile encryption key decides the token.
+  const key = (bytes) => {
+    try {
+      return JSON.parse(bytes.toString('utf8')).os_crypt?.encrypted_key ?? null;
+    } catch {
+      return null;
+    }
+  };
+  return key(real) !== null && key(real) === key(copy);
+}
+async function shadowCopies({ root, profile, localAppData }) {
+  if (!localAppData) return [];
+  const relative = (target) => {
+    const value = path.relative(path.resolve(localAppData), path.resolve(target));
+    return value && !value.startsWith('..') && !path.isAbsolute(value) ? value : null;
+  };
+  const scopes = [
+    { directory: relative(root), files: shadowedFiles.root },
+    { directory: relative(profile), files: shadowedFiles.profile },
+  ].filter((scope) => scope.directory);
+  const packages = path.join(localAppData, 'Packages');
+  const found = [];
+  for (const name of await fs.readdir(packages).catch(() => [])) {
+    const local = path.join(packages, name, 'LocalCache', 'Local');
+    for (const { directory, files } of scopes) {
+      for (const file of files) {
+        const copy = await fs.readFile(path.join(local, directory, file)).catch(() => null);
+        if (!copy) continue;
+        const real = await fs.readFile(path.join(localAppData, directory, file)).catch(() => null);
+        if (!sameFile(file, real, copy)) {
+          found.push(path.join(local, directory));
+          break;
+        }
+      }
+    }
+  }
+  // A profile copy inside a flagged install copy goes with it.
+  return [...new Set(found)]
+    .sort((a, b) => a.length - b.length)
+    .filter((dir, i, all) => !all.slice(0, i).some((outer) => dir.startsWith(outer + path.sep)));
+}
+
 async function optionalJson(file) {
   try {
     return await install.json(file);
@@ -84,6 +137,33 @@ class DesktopSetup {
     this.updateAvailable = false;
     // Path of a foreign imagegen skill found by the last connect, shown so the user can decide.
     this.skillConflict = null;
+    // Package-private copies of this install that make Codex fail authentication.
+    this.shadowCopies = [];
+  }
+  findShadowCopies() {
+    return shadowCopies({
+      root: this.options.root,
+      profile: this.options.profile,
+      localAppData: this.options.localAppData ?? process.env.LOCALAPPDATA,
+    });
+  }
+  // Renames, never deletes: the copy may hold the only record of an old install.
+  async retireShadowCopies() {
+    return this.exclusive(async () => {
+      const localAppData = this.options.localAppData ?? process.env.LOCALAPPDATA;
+      const packages = path.resolve(localAppData, 'Packages') + path.sep;
+      const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 14);
+      const retired = [];
+      for (const directory of await this.findShadowCopies()) {
+        if (!path.resolve(directory).startsWith(packages)) throw Error('INSTALL_PATH_REJECTED');
+        const target = `${directory}.stale-${stamp}`;
+        await fs.rename(directory, target);
+        retired.push(target);
+      }
+      this.shadowCopies = [];
+      this.checked = false;
+      return { retired };
+    });
   }
   async initialize() {
     this.configuration = await optionalJson(this.options.config);
@@ -107,6 +187,7 @@ class DesktopSetup {
       working: this.working,
       error: this.integrationError,
       update_available: this.updateAvailable,
+      shadow_copies: this.shadowCopies,
       skill_conflict: this.skillConflict,
     };
   }
@@ -240,6 +321,9 @@ class DesktopSetup {
       try {
         await this.refresh();
         if (!this.registered) throw Error(this.integrationError ?? 'CODEX_NOT_REGISTERED');
+        // This app sees the real files; Codex may not, so its own probe below could still pass.
+        this.shadowCopies = await this.findShadowCopies();
+        if (this.shadowCopies.length) throw Error('CODEX_SHADOW_COPY');
         const headers = await (this.options.readHeaders ?? readCodexHeaders)(this.options.root);
         const result = await this.options.health({
           url: this.connectionConfiguration.url,
@@ -284,4 +368,4 @@ function launchContext(options) {
     packageDirectory: options.packaged ? path.resolve(options.appRoot, '../../..') : undefined,
   };
 }
-module.exports = { DesktopSetup, launchContext, readCodexHeaders };
+module.exports = { DesktopSetup, launchContext, readCodexHeaders, shadowCopies };

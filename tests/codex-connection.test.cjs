@@ -8,6 +8,7 @@ const {
   DesktopSetup,
   launchContext,
   readCodexHeaders,
+  shadowCopies,
 } = require('../scripts/lib/desktop-setup.cjs');
 
 const base = path.resolve('.local/tests', `codex-connection-${Date.now()}`);
@@ -202,4 +203,90 @@ test('stale shortcut arguments cannot replace the installed profile and configur
   });
   assert.equal(selected.profile, previous.profile);
   assert.equal(selected.config, previous.config);
+});
+
+// Codex desktop is an MSIX package: files a process it started once wrote under %LOCALAPPDATA%
+// are served from its private LocalCache copy, so its auth helper can see a stale install.
+async function packagedCopy(localAppData, pkg, relative, content) {
+  const file = path.join(localAppData, 'Packages', pkg, 'LocalCache', 'Local', relative);
+  await fs.mkdir(path.dirname(file), { recursive: true });
+  await fs.writeFile(file, content);
+  return file;
+}
+const localState = (key, extra) => JSON.stringify({ os_crypt: { encrypted_key: key }, ...extra });
+
+test('only package copies that change what the auth helper reads are reported', async () => {
+  const localAppData = path.join(base, 'shadow-rules');
+  const root = path.join(localAppData, 'WebImageBridge');
+  const profile = path.join(root, 'profile');
+  await install.atomic(path.join(root, 'current.json'), {
+    product: 'web-image-bridge',
+    build: 'b2',
+  });
+  await fs.mkdir(path.join(profile, 'm1/auth'), { recursive: true });
+  await fs.writeFile(path.join(profile, 'Local State'), localState('real-key', { seen: 1 }));
+  await fs.writeFile(path.join(profile, 'm1/auth/mcp-token.enc'), 'real-token');
+  const real = await fs.readFile(path.join(root, 'current.json'));
+  // Identical bytes, and a Local State rewritten by Chromium with the same key, change nothing.
+  await packagedCopy(localAppData, 'Same.App_1', 'WebImageBridge/current.json', real);
+  await packagedCopy(
+    localAppData,
+    'Same.App_1',
+    'WebImageBridge/profile/Local State',
+    localState('real-key', { seen: 2 }),
+  );
+  assert.deepEqual(await shadowCopies({ root, profile, localAppData }), []);
+  await packagedCopy(
+    localAppData,
+    'OpenAI.Codex_2',
+    'WebImageBridge/current.json',
+    '{"build":"old"}',
+  );
+  await packagedCopy(
+    localAppData,
+    'Other.App_3',
+    'WebImageBridge/profile/m1/auth/mcp-token.enc',
+    'other-token',
+  );
+  assert.deepEqual(await shadowCopies({ root, profile, localAppData }), [
+    path.join(localAppData, 'Packages/OpenAI.Codex_2/LocalCache/Local/WebImageBridge'),
+    path.join(localAppData, 'Packages/Other.App_3/LocalCache/Local/WebImageBridge/profile'),
+  ]);
+  // Outside %LOCALAPPDATA% nothing is virtualized, so nothing is scanned.
+  assert.deepEqual(await shadowCopies({ root: base, profile: base, localAppData }), []);
+});
+
+test('a stale Codex package copy fails the check until it is renamed aside', async () => {
+  let probes = 0;
+  const localAppData = path.join(base, 'shadow-check');
+  const { setup, root } = await registeredSetup('shadow-check/WebImageBridge', {
+    localAppData,
+    health: async () => {
+      probes++;
+      return { tools: 8 };
+    },
+  });
+  const staleState = '{"product":"web-image-bridge","profile":"C:/stale/profile"}';
+  const stale = await packagedCopy(
+    localAppData,
+    'OpenAI.Codex_2p2nqsd0c76g0',
+    'WebImageBridge/current.json',
+    staleState,
+  );
+  const copy = path.dirname(stale);
+  await assert.rejects(setup.check(), /CODEX_SHADOW_COPY/);
+  assert.equal(probes, 0);
+  assert.deepEqual(setup.snapshot().shadow_copies, [copy]);
+  assert.equal(setup.snapshot().checked, false);
+  const { retired } = await setup.retireShadowCopies();
+  assert.equal(retired.length, 1);
+  assert.ok(retired[0].startsWith(`${copy}.stale-`));
+  // Renamed, not deleted.
+  assert.equal(await fs.readFile(path.join(retired[0], 'current.json'), 'utf8'), staleState);
+  await assert.rejects(fs.stat(copy), /ENOENT/);
+  await setup.check();
+  assert.equal(setup.snapshot().checked, true);
+  assert.deepEqual(setup.snapshot().shadow_copies, []);
+  assert.equal(probes, 1);
+  assert.ok(root.startsWith(localAppData));
 });
