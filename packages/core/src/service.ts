@@ -13,6 +13,7 @@ import {
   withoutKey,
   now,
   failure,
+  Serial,
   type Session,
   type Job,
   type JobRecord,
@@ -50,6 +51,9 @@ export class BridgeService {
   private readonly inputs: Roots;
   private accepting = true;
   private configuring = false;
+  // Serializes submits (idempotent admission and input staging). Always taken before
+  // engine.serial, never while holding it.
+  private readonly admissions = new Serial();
   async configureFolders(
     inputRoots: string[],
     exportRoots: string[],
@@ -58,14 +62,17 @@ export class BridgeService {
     if (this.configuring) throw new Fault('STATE_CONFLICT');
     this.configuring = true;
     try {
-      return await this.engine.serial.run(async () => {
-        if (!this.accepting || this.engine.openJobs().some((job) => !job.snapshot.terminal))
-          throw new Fault('STATE_CONFLICT');
-        await this.exporter.idle();
-        await persist();
-        this.options.inputRoots.splice(0, this.options.inputRoots.length, ...inputRoots);
-        this.options.exportRoots.splice(0, this.options.exportRoots.length, ...exportRoots);
-      });
+      // The admission lock keeps roots from changing under a submit that is still staging.
+      return await this.admissions.run(() =>
+        this.engine.serial.run(async () => {
+          if (!this.accepting || this.engine.openJobs().some((job) => !job.snapshot.terminal))
+            throw new Fault('STATE_CONFLICT');
+          await this.exporter.idle();
+          await persist();
+          this.options.inputRoots.splice(0, this.options.inputRoots.length, ...inputRoots);
+          this.options.exportRoots.splice(0, this.options.exportRoots.length, ...exportRoots);
+        }),
+      );
     } finally {
       this.configuring = false;
     }
@@ -107,6 +114,7 @@ export class BridgeService {
     await this.ready.catch(() => {});
     await this.engine.stop();
     await this.exporter.idle();
+    await this.admissions.run(() => undefined); // A staging submit still writes its admission.
     await this.engine.serial.run(() => this.db.close());
   }
   async call(name: string, value: unknown): Promise<Record<string, unknown>> {
@@ -284,7 +292,9 @@ export class BridgeService {
       inputs: raw.inputs ?? [],
       expected_output: { count: 1, require_alpha: false, strict: false, ...raw.expected_output },
     } as Submit;
-    return this.engine.serial.run(async () => {
+    // Staging copies and decodes up to 80 MB. Only other submits wait on the admission lock;
+    // the running job's checkpoints and user controls keep the engine lock meanwhile.
+    return this.admissions.run(async () => {
       const hash = digest(withoutKey(input, 'request_id'));
       const receipt = this.replay('submit', input.request_id, hash);
       if (receipt)
@@ -296,19 +306,7 @@ export class BridgeService {
       if (!this.accepting) throw new Fault('STATE_CONFLICT', 'wait');
       let admission = this.db.get<Admission>('admissions', input.request_id);
       if (admission && admission.digest !== hash) throw new Fault('IDEMPOTENCY_CONFLICT');
-      if (input.session_id) {
-        this.engine.session(input.session_id);
-        const prior = this.engine.bySession(input.session_id);
-        if (prior.length && !input.parent_job_id) throw new Fault('STATE_CONFLICT');
-      }
-      if (input.parent_job_id) {
-        const parent = this.engine.job(input.parent_job_id).snapshot;
-        if (
-          parent.session_id !== input.session_id ||
-          !['succeeded', 'partial'].includes(parent.state)
-        )
-          throw new Fault('STATE_CONFLICT');
-      }
+      this.lineage(input);
       if (!admission) {
         admission = { digest: hash, job_id: randomUUID(), request: input, inputs: [] };
         this.db.insert('admissions', input.request_id, admission);
@@ -341,53 +339,72 @@ export class BridgeService {
       }
       if (admission.inputs.reduce((size, entry) => size + entry.bytes, 0) > 83886080)
         throw new Fault('INPUT_INVALID');
-      const job = this.db.transaction(() => {
-        const session = input.session_id
-          ? this.engine.session(input.session_id)
-          : this.newSession();
-        const timestamp = now();
-        const job: Job = {
-          job_id: admission!.job_id,
-          request_id: input.request_id,
-          session_id: session.session_id,
-          mode: input.mode,
-          state: 'queued',
-          phase: 'prepare',
-          submission_state: 'not_sent',
-          revision: 1,
-          terminal: false,
-          requires_action: false,
-          remote_may_continue: false,
-          artifact_ids: [],
-          warnings: [],
-          error: null,
-          created_at: timestamp,
-          updated_at: timestamp,
-        };
-        this.db.insert('jobs', job.job_id, {
-          snapshot: job,
-          request: input,
-          inputs: admission!.inputs,
-          digest: hash,
+      const job = await this.engine.serial.run(() => {
+        if (!this.accepting) throw new Fault('STATE_CONFLICT', 'wait');
+        return this.db.transaction(() => {
+          this.lineage(input); // Checked again with the job insert, not only before staging.
+          const session = input.session_id
+            ? this.engine.session(input.session_id)
+            : this.newSession();
+          const timestamp = now();
+          const job: Job = {
+            job_id: admission!.job_id,
+            request_id: input.request_id,
+            session_id: session.session_id,
+            mode: input.mode,
+            state: 'queued',
+            phase: 'prepare',
+            submission_state: 'not_sent',
+            revision: 1,
+            terminal: false,
+            requires_action: false,
+            remote_may_continue: false,
+            artifact_ids: [],
+            warnings: [],
+            error: null,
+            created_at: timestamp,
+            updated_at: timestamp,
+          };
+          this.db.insert('jobs', job.job_id, {
+            snapshot: job,
+            request: input,
+            inputs: admission!.inputs,
+            digest: hash,
+          });
+          this.db.event(job.job_id, 1, {
+            revision: 1,
+            at: timestamp,
+            kind: 'accepted',
+            state: job.state,
+            phase: job.phase,
+            submission_state: job.submission_state,
+          });
+          this.db.insert('receipts', `submit:${input.request_id}`, {
+            digest: hash,
+            target: job.job_id,
+            outcome: 'applied',
+          });
+          return job;
         });
-        this.db.event(job.job_id, 1, {
-          revision: 1,
-          at: timestamp,
-          kind: 'accepted',
-          state: job.state,
-          phase: job.phase,
-          submission_state: job.submission_state,
-        });
-        this.db.insert('receipts', `submit:${input.request_id}`, {
-          digest: hash,
-          target: job.job_id,
-          outcome: 'applied',
-        });
-        return job;
       });
       this.engine.kick();
       return { accepted: true, deduplicated: false, job };
     });
+  }
+  private lineage(input: Submit) {
+    if (input.session_id) {
+      this.engine.session(input.session_id);
+      const prior = this.engine.bySession(input.session_id);
+      if (prior.length && !input.parent_job_id) throw new Fault('STATE_CONFLICT');
+    }
+    if (input.parent_job_id) {
+      const parent = this.engine.job(input.parent_job_id).snapshot;
+      if (
+        parent.session_id !== input.session_id ||
+        !['succeeded', 'partial'].includes(parent.state)
+      )
+        throw new Fault('STATE_CONFLICT');
+    }
   }
   private async control(input: ContractTypes['control_input']) {
     return this.engine.serial.run(() =>
