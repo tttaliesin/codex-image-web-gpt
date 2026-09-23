@@ -38,7 +38,9 @@ export class Operations {
   async command(action: string, expected = this.snapshot()) {
     const current = this.snapshot();
     if (
-      ['takeover', 'release', 'cancel', 'resume-job', 'reconcile'].includes(action) &&
+      ['takeover', 'release', 'cancel', 'resume-job', 'reconcile', 'release-remote'].includes(
+        action,
+      ) &&
       (expected.job?.job_id !== current.job?.job_id ||
         expected.job?.revision !== current.job?.revision ||
         expected.session?.session_id !== current.session?.session_id ||
@@ -66,6 +68,9 @@ export class Operations {
         job_id: current.job.job_id,
         expected_revision: current.job.revision,
       });
+    } else if (action === 'release-remote') {
+      if (!current.job) throw new Fault('NOT_FOUND');
+      await this.service.releaseRemote(current.job.job_id, current.job.revision);
     } else if (action === 'quit-after') {
       this.service.drain();
       void this.checkDrain();
@@ -74,6 +79,11 @@ export class Operations {
       this.quit();
     } else throw new Fault('INPUT_INVALID');
     if (result && !result.ok) throw new Fault((result.error as any).code);
+  }
+  // A canceled web run may finish later; recheck it instead of waiting for the next request.
+  recheckRemote() {
+    const job = this.service.engine.active()?.snapshot;
+    if (job?.terminal && job.remote_may_continue) this.service.engine.kick();
   }
   async checkDrain() {
     if (!this.service.draining || this.checkingDrain) return;

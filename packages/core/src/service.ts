@@ -439,6 +439,20 @@ export class BridgeService {
       }),
     );
   }
+  // Desktop-only attestation: the user checked the web page and no run of this job remains.
+  // Evidence-less submissions can never be observed as complete, so this is their only exit.
+  async releaseRemote(jobId: string, expectedRevision: number) {
+    await this.engine.serial.run(() =>
+      this.db.transaction(() => {
+        const job = this.engine.job(jobId).snapshot;
+        if (job.revision !== expectedRevision) throw new Fault('REVISION_CONFLICT');
+        if (!job.terminal || !job.remote_may_continue) throw new Fault('STATE_CONFLICT');
+        this.engine.update(jobId, { remote_may_continue: false }, 'control_applied');
+      }),
+    );
+    this.engine.changes.emit('operations');
+    this.engine.kick();
+  }
   private async wait(input: ContractTypes['wait_input']) {
     const after = input.after_revision ?? 0;
     const timeout = input.timeout_ms ?? 25000;

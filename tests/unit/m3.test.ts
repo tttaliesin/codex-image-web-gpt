@@ -200,3 +200,58 @@ test('M3 suspend/resume and cancellation keep exactly one submit; canceled compl
     await service.close();
   }
 });
+test('M3 evidence-less canceled submission holds the queue until the user attests release', async () => {
+  const port = new HeldPort();
+  port.phase = 'sending';
+  const service = await setup(port),
+    operations = new Operations(service, () => {});
+  try {
+    const job = (await call(service, 'submit', request())).job;
+    await until(() => service.engine.job(job.job_id).snapshot.submission_state === 'sending');
+    await operations.command('cancel');
+    await service.engine.idle();
+    assert.equal(service.engine.job(job.job_id).snapshot.remote_may_continue, true);
+    const next = (await call(service, 'submit', request())).job;
+    operations.recheckRemote();
+    await service.engine.idle();
+    assert.equal(service.engine.job(next.job_id).snapshot.state, 'queued');
+    assert.equal((await call(service, 'status', {})).queue.dispatch_blocked, true);
+    const stale = operations.snapshot();
+    await call(service, 'status', {});
+    await assert.rejects(
+      service.releaseRemote(job.job_id, stale.job!.revision - 1),
+      /REVISION_CONFLICT/,
+    );
+    await operations.command('release-remote', stale);
+    const released = service.engine.job(job.job_id).snapshot;
+    assert.equal(released.state, 'canceled');
+    assert.equal(released.remote_may_continue, false);
+    assert.equal(port.sends, 1);
+    await until(() => service.engine.job(next.job_id).snapshot.submission_state === 'sending');
+    assert.equal(port.sends, 2);
+    const running = service.engine.job(next.job_id).snapshot;
+    await assert.rejects(service.releaseRemote(next.job_id, running.revision), /STATE_CONFLICT/);
+  } finally {
+    await service.close();
+  }
+});
+test('M3 page observation rechecks a canceled confirmed run without a new request', async () => {
+  const port = new HeldPort(),
+    service = await setup(port),
+    operations = new Operations(service, () => {});
+  try {
+    const job = (await call(service, 'submit', request())).job;
+    await until(() => service.engine.job(job.job_id).snapshot.submission_state === 'confirmed');
+    await operations.command('cancel');
+    await service.engine.idle();
+    operations.recheckRemote();
+    await service.engine.idle();
+    assert.equal(service.engine.job(job.job_id).snapshot.remote_may_continue, true);
+    port.complete = true;
+    operations.recheckRemote();
+    await until(() => !service.engine.job(job.job_id).snapshot.remote_may_continue);
+    assert.equal(service.engine.active(), undefined);
+  } finally {
+    await service.close();
+  }
+});

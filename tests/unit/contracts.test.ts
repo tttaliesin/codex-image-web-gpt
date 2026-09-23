@@ -21,5 +21,5 @@ test('canonical JSON Schema 2020-12 validates all supplied valid and invalid exa
       `${sample.name}: ${JSON.stringify(validate.errors)}`,
     );
   }
-  assert.equal(examples.cases.length, 96);
+  assert.equal(examples.cases.length, 98);
 });

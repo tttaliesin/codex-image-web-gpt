@@ -485,12 +485,26 @@ async function start() {
           'cancel',
           'resume-job',
           'reconcile',
+          'release-remote',
           'quit-after',
           'quit-now',
           'reconnect',
         ].includes(action)
       ) {
         try {
+          if (action === 'release-remote') {
+            const { response } = await dialog.showMessageBox(window!, {
+              type: 'warning',
+              buttons: ['잠금 해제', '취소'],
+              defaultId: 1,
+              cancelId: 1,
+              title: '웹 생성 종료 확인',
+              message: '중단한 작업의 웹 생성이 끝났는지 확인했나요?',
+              detail:
+                'ChatGPT 페이지에서 이 요청이 전송되지 않았거나 생성이 끝난 것을 직접 확인한 경우에만 해제하세요. 해제하면 대기 중인 다음 작업이 시작됩니다.',
+            });
+            if (response !== 0) return;
+          }
           if (action === 'reconnect') {
             cdp.connect();
             await operations.resume('ADAPTER_UNAVAILABLE');
