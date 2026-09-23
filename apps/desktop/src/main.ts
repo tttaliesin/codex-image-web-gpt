@@ -426,6 +426,7 @@ async function start() {
         'pick-output',
         'remove-input',
         'connect',
+        'replace-skill',
         'disconnect',
         'check',
         'copy-example',
@@ -470,10 +471,25 @@ async function start() {
       );
       return { copied: true };
     }
-    if (action === 'connect') {
+    if (action === 'connect' || action === 'replace-skill') {
       if (!mcp) throw Error('MCP_NOT_ENABLED');
       if (pageStatus !== 'ready') throw Error('AUTH_REQUIRED');
-      const result = await setup.connect();
+      if (action === 'replace-skill') {
+        const conflict = setup.snapshot().skill_conflict;
+        if (!conflict) throw Error('INPUT_INVALID');
+        // The user's own files move only after they see exactly which folder it is.
+        const { response } = await dialog.showMessageBox(window!, {
+          type: 'warning',
+          buttons: ['백업 후 연결', '취소'],
+          defaultId: 1,
+          cancelId: 1,
+          title: '기존 imagegen 스킬 백업',
+          message: '기존 imagegen 스킬을 백업하고 Web Image Bridge 스킬로 연결할까요?',
+          detail: `${conflict}\n\n이 폴더는 앱 설치 폴더의 backups로 옮겨지고, 연결을 해제하면 원래 위치로 되돌아갑니다.`,
+        });
+        if (response !== 0) return { canceled: true };
+      }
+      const result = await setup.connect({ replaceSkill: action === 'replace-skill' });
       await setup.check();
       return { ...result, verified: true };
     }
