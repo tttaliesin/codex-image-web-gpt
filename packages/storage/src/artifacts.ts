@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { mkdir, copyFile, rename, open, readdir, unlink } from 'node:fs/promises';
+import { mkdir, copyFile, rename, open, readdir, unlink, rm } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { validDefinition } from '../../contracts/src';
 import { Engine } from '../../core/src/engine';
@@ -96,6 +96,28 @@ export class ArtifactStore {
         await this.holdForUser(jobId);
       }
     }
+  }
+  // A job's downloads are copied into artifacts on commit and read only while the job can
+  // still run. Once it is terminal and no web run can continue, they would only double the
+  // disk use of every image. Failures are left for the next startup sweep.
+  async discardDownloads(jobId: string) {
+    try {
+      if (!/^[0-9a-f-]{36}$/.test(jobId)) return;
+      const job = this.engine.db.get<JobRecord>('jobs', jobId)?.snapshot;
+      if (!job?.terminal || job.remote_may_continue) return;
+      await rm(path.join(this.directory, 'downloads', jobId), {
+        recursive: true,
+        force: true,
+        maxRetries: 3,
+      });
+    } catch {
+      /* Busy files or a closed database: retried at the next startup. */
+    }
+  }
+  async sweepDownloads() {
+    const directory = path.join(this.directory, 'downloads');
+    for (const name of await readdir(directory).catch(() => [] as string[]))
+      await this.discardDownloads(name);
   }
   // The response already exists on the web, so collecting it again never resubmits.
   private holdForUser(jobId: string) {

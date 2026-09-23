@@ -54,6 +54,8 @@ export class BridgeService {
   // Serializes submits (idempotent admission and input staging). Always taken before
   // engine.serial, never while holding it.
   private readonly admissions = new Serial();
+  // Download removal in the background, awaited only by close().
+  private cleanup: Promise<void> = Promise.resolve();
   async configureFolders(
     inputRoots: string[],
     exportRoots: string[],
@@ -102,10 +104,15 @@ export class BridgeService {
     );
     this.exporter = new Exporter(this.db, new Roots(options.exportRoots));
     this.artifacts = new ArtifactStore(options.directory, this.engine);
+    this.engine.changes.on('changed', (id: string) => {
+      this.cleanup = this.cleanup.then(() => this.artifacts.discardDownloads(id));
+    });
     this.engine.recover();
     this.ready = this.artifacts.recover().then(() => {
       this.engine.kick();
       this.exporter.recover();
+      // Removing leftovers can take a while after an update; it never delays startup.
+      this.cleanup = this.cleanup.then(() => this.artifacts.sweepDownloads());
     });
   }
   async close() {
@@ -115,6 +122,7 @@ export class BridgeService {
     await this.engine.stop();
     await this.exporter.idle();
     await this.admissions.run(() => undefined); // A staging submit still writes its admission.
+    await this.cleanup;
     await this.engine.serial.run(() => this.db.close());
   }
   async call(name: string, value: unknown): Promise<Record<string, unknown>> {
