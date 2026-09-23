@@ -705,5 +705,11 @@ if (ownsLock && validationFile)
 else if (ownsLock)
   void start().catch((error) => {
     console.error(safeError(error));
+    // Without a window the app would otherwise vanish; tests only need the exit code.
+    if (!testing)
+      dialog.showErrorBox(
+        'Web Image Bridge를 시작하지 못했습니다',
+        `오류 코드: ${safeError(error)}\n앱을 다시 실행해 주세요. 계속 실패하면 이 오류 코드를 알려 주세요.`,
+      );
     app.exit(1);
   });

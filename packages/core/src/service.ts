@@ -103,7 +103,8 @@ export class BridgeService {
   }
   async close() {
     this.prepareShutdown();
-    await this.ready;
+    // A failed startup must still release the database handle.
+    await this.ready.catch(() => {});
     await this.engine.stop();
     await this.exporter.idle();
     await this.engine.serial.run(() => this.db.close());
