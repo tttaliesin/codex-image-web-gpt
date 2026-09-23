@@ -332,6 +332,36 @@ async function start() {
       void operations?.suspend('ADAPTER_UNAVAILABLE');
     }
   });
+  // A crashed renderer keeps its WebContents but needs a new document before the
+  // debugger can attach; the engine then resumes through its evidence-only reconcile.
+  const recoverPage = async () => {
+    if (view.webContents.isCrashed()) {
+      const last = view.webContents.getURL();
+      const url = allowedNavigation(last, fixture?.origin)
+        ? last
+        : (fixture?.origin ?? 'https://chatgpt.com/');
+      if (!(await loadPageDocument(view.webContents, url))) throw Error('PAGE_LOAD_FAILED');
+    }
+    cdp.connect();
+    await operations?.resume('ADAPTER_UNAVAILABLE');
+  };
+  let lastCrash = 0;
+  view.webContents.on('render-process-gone', (_event, details) => {
+    if (quitting || details.reason === 'clean-exit') return;
+    // Reload automatically once; a repeated crash waits for 연결 복구 instead of looping.
+    const repeated = Date.now() - lastCrash < 5 * 60_000;
+    lastCrash = Date.now();
+    status('ADAPTER_UNAVAILABLE');
+    void (async () => {
+      await operations?.suspend('ADAPTER_UNAVAILABLE');
+      if (repeated) return showBrowser();
+      await recoverPage();
+      if (!webExecution?.busy) status('ready');
+    })().catch((error) => {
+      status(safeError(error));
+      showBrowser();
+    });
+  });
   const requestFile = argument('--request');
   if (requestFile) {
     request = await readJson(requestFile);
@@ -506,8 +536,7 @@ async function start() {
             if (response !== 0) return;
           }
           if (action === 'reconnect') {
-            cdp.connect();
-            await operations.resume('ADAPTER_UNAVAILABLE');
+            await recoverPage();
             if (!webExecution?.busy) status('ready');
           } else await operations.command(action, expected);
           refreshTray?.();
