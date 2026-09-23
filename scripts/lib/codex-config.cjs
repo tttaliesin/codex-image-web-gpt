@@ -7,6 +7,15 @@ const markers = new Set([
   '# END Web Image Bridge managed integration',
 ]);
 
+// Codex records the user's per-tool choices, such as "always allow", as
+// [mcp_servers.web_image_bridge.tools.<tool>] tables. They belong to the user, not to
+// this integration, so ownership compares only the connection settings we wrote.
+function serverSettings(server) {
+  if (!server || typeof server !== 'object') return server;
+  const { tools: _userToolSettings, ...settings } = server;
+  return settings;
+}
+
 // Receipts from older releases store TOML text. Its values establish ownership;
 // comment boundaries do not, since other writers may insert settings between them.
 function assertManagedConfig(text, block) {
@@ -15,7 +24,7 @@ function assertManagedConfig(text, block) {
   const server = expected.mcp_servers?.web_image_bridge;
   if (!server) throw Error('INTEGRATION_RECEIPT_INVALID');
   if (!actual.mcp_servers?.web_image_bridge) throw Error('CONFIG_MANAGED_BLOCK_MISSING');
-  if (!isDeepStrictEqual(actual.mcp_servers.web_image_bridge, server))
+  if (!isDeepStrictEqual(serverSettings(actual.mcp_servers.web_image_bridge), server))
     throw Error('CONFIG_MANAGED_BLOCK_CHANGED');
   for (const entry of expected.skills?.config ?? []) {
     const matches = actual.skills?.config?.filter((item) => item.path === entry.path) ?? [];
@@ -23,6 +32,19 @@ function assertManagedConfig(text, block) {
       throw Error('CONFIG_MANAGED_BLOCK_CHANGED');
   }
   return actual;
+}
+
+// Dotted key path of a table header such as [a.b.c]; null for anything else.
+function headerPath(shape) {
+  const keys = [];
+  let node = shape;
+  while (node && typeof node === 'object' && !Array.isArray(node)) {
+    const names = Object.keys(node);
+    if (names.length !== 1) break;
+    keys.push(names[0]);
+    node = node[names[0]];
+  }
+  return isDeepStrictEqual(node, {}) ? keys : null;
 }
 
 function normalizeEmptyParents(config) {
@@ -62,11 +84,16 @@ function removeManagedConfig(text, block) {
     const header = headers[index];
     const shape = parse(header.value);
     const finish = headers[index + 1]?.start ?? text.length;
-    const isServer = isDeepStrictEqual(shape, { mcp_servers: { web_image_bridge: {} } });
+    const keys = headerPath(shape);
+    const isServer = isDeepStrictEqual(keys, ['mcp_servers', 'web_image_bridge']);
+    // The user's per-tool tables go with the server; left behind, they would recreate a
+    // server entry without a transport and break Codex's configuration.
+    const isServerTable =
+      !!keys && keys.length > 2 && keys[0] === 'mcp_servers' && keys[1] === 'web_image_bridge';
     const isSkill =
       isDeepStrictEqual(shape, { skills: { config: [{}] } }) &&
       skillPaths.has(parse(text.slice(header.start, finish)).skills.config[0].path);
-    if (!isServer && !isSkill) continue;
+    if (!isServer && !isServerTable && !isSkill) continue;
     if (isServer) servers++;
     if (isSkill) skills++;
     for (const line of lines) {
@@ -99,4 +126,4 @@ function removeManagedConfig(text, block) {
   return updated;
 }
 
-module.exports = { assertManagedConfig, removeManagedConfig };
+module.exports = { assertManagedConfig, removeManagedConfig, serverSettings };

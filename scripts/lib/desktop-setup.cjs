@@ -5,7 +5,7 @@ const os = require('node:os');
 const { execFile } = require('node:child_process');
 const { promisify, isDeepStrictEqual } = require('node:util');
 const install = require('./installation.cjs');
-const { assertManagedConfig } = require('./codex-config.cjs');
+const { assertManagedConfig, serverSettings } = require('./codex-config.cjs');
 const runFile = promisify(execFile);
 const samePath = (left, right) =>
   typeof left === 'string' &&
@@ -218,7 +218,8 @@ class DesktopSetup {
         this.options.root,
         this.configuration.port ?? 43179,
       );
-      if (!isDeepStrictEqual(server, expected)) throw Error('CODEX_CONFIG_MISMATCH');
+      if (!isDeepStrictEqual(serverSettings(server), expected))
+        throw Error('CODEX_CONFIG_MISMATCH');
       const actual = await install.files(receipt.skill);
       if (JSON.stringify(actual) !== JSON.stringify(receipt.skillFiles))
         throw Error('INSTALLED_SKILL_CHANGED');

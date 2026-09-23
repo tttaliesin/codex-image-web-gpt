@@ -359,3 +359,44 @@ test('an interrupted skill replacement or restore keeps the user skill recoverab
   assert.deepEqual(await install.files(skill), original);
   assert.equal((await install.json(path.join(root, 'integration.json'))).active, false);
 });
+
+// Codex desktop writes the user's "always allow" choice under the server table.
+const approvals =
+  '\n[mcp_servers.web_image_bridge.tools.web_image_submit]\napproval_mode = "approve"\n' +
+  '\n[mcp_servers.web_image_bridge.tools.web_image_control]\napproval_mode = "approve"\n';
+
+test('Codex tool approvals inside the managed block survive update and leave with disconnect', async () => {
+  const { root, options, configFile } = await sharedConfigFixture('tool-approvals');
+  const text = (await fs.readFile(configFile, 'utf8')).replace(
+    '\n[[skills.config]]',
+    approvals + '\n[[skills.config]]',
+  );
+  await fs.writeFile(configFile, text);
+  assert.equal(
+    TOML.parse(text).mcp_servers.web_image_bridge.tools.web_image_submit.approval_mode,
+    'approve',
+  );
+  // An update re-registers the same connection and must keep the user's choices untouched.
+  await install.register(options);
+  assert.equal(await fs.readFile(configFile, 'utf8'), text);
+  await install.unregister({ root });
+  const remaining = TOML.parse(await fs.readFile(configFile, 'utf8'));
+  // Orphaned tool tables would recreate a server without a transport.
+  assert.equal(remaining.mcp_servers, undefined);
+  assert.deepEqual(remaining.agents, {});
+});
+
+test('a changed connection replaces the server and drops approvals for the old one', async () => {
+  const { root, options, configFile } = await sharedConfigFixture('tool-approvals-port');
+  const text = (await fs.readFile(configFile, 'utf8')).replace(
+    '\n[[skills.config]]',
+    approvals + '\n[[skills.config]]',
+  );
+  await fs.writeFile(configFile, text);
+  const configPath = path.join(root, 'mcp-config.json');
+  await install.atomic(configPath, { ...(await install.json(configPath)), port: 43190 });
+  await install.register(options);
+  const server = TOML.parse(await fs.readFile(configFile, 'utf8')).mcp_servers.web_image_bridge;
+  assert.equal(server.url, 'http://127.0.0.1:43190/mcp');
+  assert.equal(server.tools, undefined);
+});

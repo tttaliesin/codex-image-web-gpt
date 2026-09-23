@@ -290,3 +290,17 @@ test('a stale Codex package copy fails the check until it is renamed aside', asy
   assert.equal(probes, 1);
   assert.ok(root.startsWith(localAppData));
 });
+
+test('Codex tool approvals do not make a registered connection look changed', async () => {
+  const { setup, root } = await registeredSetup('tool-approvals');
+  const receipt = await install.json(path.join(root, 'integration.json'));
+  const configFile = path.join(receipt.codex, 'config.toml');
+  await fs.appendFile(
+    configFile,
+    '\n[mcp_servers.web_image_bridge.tools.web_image_submit]\napproval_mode = "approve"\n',
+  );
+  await setup.check();
+  assert.equal(setup.snapshot().registered, true);
+  assert.equal(setup.snapshot().checked, true);
+  assert.equal(setup.snapshot().error, null);
+});
