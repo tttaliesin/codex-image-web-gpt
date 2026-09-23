@@ -427,6 +427,7 @@ async function start() {
         'remove-input',
         'connect',
         'replace-skill',
+        'retire-shadow',
         'disconnect',
         'check',
         'copy-example',
@@ -490,6 +491,23 @@ async function start() {
         if (response !== 0) return { canceled: true };
       }
       const result = await setup.connect({ replaceSkill: action === 'replace-skill' });
+      await setup.check();
+      return { ...result, verified: true };
+    }
+    if (action === 'retire-shadow') {
+      const copies: string[] = setup.snapshot().shadow_copies;
+      if (!copies.length) throw Error('INPUT_INVALID');
+      const { response } = await dialog.showMessageBox(window!, {
+        type: 'warning',
+        buttons: ['이름 바꾸기', '취소'],
+        defaultId: 1,
+        cancelId: 1,
+        title: 'Codex의 이전 설치본 정리',
+        message: 'Codex 앱 전용 저장소에 남은 이전 설치본의 이름을 바꿀까요?',
+        detail: `${copies.join('\n')}\n\n지우지 않고 이름만 바꿉니다. 이후 Codex에서 새 대화를 시작하면 현재 설치본으로 연결됩니다.`,
+      });
+      if (response !== 0) return { canceled: true };
+      const result = await setup.retireShadowCopies();
       await setup.check();
       return { ...result, verified: true };
     }
