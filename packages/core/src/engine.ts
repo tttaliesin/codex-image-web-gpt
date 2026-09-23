@@ -1,7 +1,7 @@
 import { randomUUID, createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { stateModel, validDefinition } from '../../contracts/src';
-import { Database } from '../../storage/src/database';
+import { Database, where } from '../../storage/src/database';
 import {
   Fault,
   Serial,
@@ -90,8 +90,30 @@ export class Engine {
   jobs(): JobRecord[] {
     return this.db.all<JobRecord>('jobs');
   }
+  // Non-terminal jobs and canceled runs that may still continue remotely: usually a handful.
+  openJobs(): JobRecord[] {
+    return this.db.select<JobRecord>('jobs', where.openJob);
+  }
+  queued(): JobRecord[] {
+    return this.openJobs().filter((j) => j.snapshot.state === 'queued');
+  }
+  byRequest(requestId: string): JobRecord | undefined {
+    return this.db.select<JobRecord>('jobs', where.jobRequest, requestId)[0];
+  }
+  bySession(sessionId: string): JobRecord[] {
+    return this.db.select<JobRecord>('jobs', where.jobSession, sessionId);
+  }
+  // Newest first, optionally within one session.
+  latest(count: number, sessionId?: string): JobRecord[] {
+    return sessionId
+      ? this.db.latest<JobRecord>('jobs', count, where.jobSession, sessionId)
+      : this.db.latest<JobRecord>('jobs', count);
+  }
+  manualSession(): Session | undefined {
+    return this.db.select<Session>('sessions', where.manualSession)[0];
+  }
   active(): JobRecord | undefined {
-    return this.jobs().find(
+    return this.openJobs().find(
       (j) =>
         (!j.snapshot.terminal && j.snapshot.state !== 'queued') || j.snapshot.remote_may_continue,
     );
@@ -145,7 +167,7 @@ export class Engine {
   }
   recover() {
     this.db.transaction(() => {
-      for (const { snapshot: job } of this.jobs()) {
+      for (const { snapshot: job } of this.openJobs()) {
         if (job.state === 'running') this.update(job.job_id, { state: 'reconciling' });
         if (job.submission_state === 'sending' && !job.terminal) {
           this.update(
@@ -194,9 +216,9 @@ export class Engine {
           )
             return { id: active.snapshot.job_id, reconcile: true, canceled: true };
           if (active && active.snapshot.state !== 'reconciling') return;
-          if (this.db.all<Session>('sessions').some((s) => s.control_owner === 'manual')) return;
+          if (this.manualSession()) return;
           if (!active && this.paused) return;
-          const record = active ?? this.jobs().find((j) => j.snapshot.state === 'queued');
+          const record = active ?? this.queued()[0];
           if (!record) return;
           const id = record.snapshot.job_id;
           const session = this.session(record.snapshot.session_id);

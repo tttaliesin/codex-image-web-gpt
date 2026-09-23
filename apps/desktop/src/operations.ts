@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { BridgeService } from '../../../packages/core/src/service';
-import { Fault } from '../../../packages/core/src/model';
+import { Fault, type Session } from '../../../packages/core/src/model';
 
 export class Operations {
   private interruptions = new Set<string>();
@@ -11,28 +11,20 @@ export class Operations {
     private quit: () => void,
   ) {}
   snapshot() {
-    const sessions =
-      this.service.db.all<import('../../../packages/core/src/model').Session>('sessions');
-    const manual = sessions.find((session) => session.control_owner === 'manual');
+    const engine = this.service.engine;
+    const manual = engine.manualSession();
     const job =
-      this.service.engine.active()?.snapshot ??
-      (manual
-        ? this.service.engine
-            .jobs()
-            .filter((job) => job.snapshot.session_id === manual.session_id)
-            .at(-1)?.snapshot
-        : this.service.engine.jobs().at(-1)?.snapshot) ??
-      null;
+      engine.active()?.snapshot ?? engine.latest(1, manual?.session_id)[0]?.snapshot ?? null;
     const session = job
-      ? this.service.engine.session(job.session_id)
-      : (manual ?? sessions.at(-1) ?? null);
+      ? engine.session(job.session_id)
+      : (manual ?? this.service.db.latest<Session>('sessions', 1)[0] ?? null);
     return {
       job,
       session,
       paused: this.service.engine.paused,
       suspended: this.service.engine.suspended,
       draining: this.service.draining,
-      waiting_count: this.service.engine.jobs().filter((j) => j.snapshot.state === 'queued').length,
+      waiting_count: engine.queued().length,
     };
   }
   async command(action: string, expected = this.snapshot()) {

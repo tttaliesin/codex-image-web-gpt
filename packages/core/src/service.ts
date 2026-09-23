@@ -59,7 +59,7 @@ export class BridgeService {
     this.configuring = true;
     try {
       return await this.engine.serial.run(async () => {
-        if (!this.accepting || this.engine.jobs().some((job) => !job.snapshot.terminal))
+        if (!this.accepting || this.engine.openJobs().some((job) => !job.snapshot.terminal))
           throw new Fault('STATE_CONFLICT');
         await this.exporter.idle();
         await persist();
@@ -135,7 +135,7 @@ export class BridgeService {
           const input = value as ContractTypes['get_input'];
           const job = input.job_id
             ? this.engine.job(input.job_id)
-            : this.engine.jobs().find((j) => j.snapshot.request_id === input.request_id);
+            : this.engine.byRequest(input.request_id!);
           if (!job) throw new Fault('NOT_FOUND');
           data = { job: job.snapshot };
           break;
@@ -196,9 +196,7 @@ export class BridgeService {
             session: this.engine.session(receipt.target),
           };
         const active = this.engine.active();
-        const manual = this.db
-          .all<Session>('sessions')
-          .find((session) => session.control_owner === 'manual');
+        const manual = this.engine.manualSession();
         if (
           manual &&
           (((input.action === 'takeover' || input.action === 'show') &&
@@ -300,7 +298,7 @@ export class BridgeService {
       if (admission && admission.digest !== hash) throw new Fault('IDEMPOTENCY_CONFLICT');
       if (input.session_id) {
         this.engine.session(input.session_id);
-        const prior = this.engine.jobs().filter((j) => j.snapshot.session_id === input.session_id);
+        const prior = this.engine.bySession(input.session_id);
         if (prior.length && !input.parent_job_id) throw new Fault('STATE_CONFLICT');
       }
       if (input.parent_job_id) {
@@ -515,7 +513,7 @@ export class BridgeService {
   }
   private status(): ContractTypes['status_data'] {
     const active = this.engine.active()?.snapshot;
-    const manual = this.db.all<Session>('sessions').some((s) => s.control_owner === 'manual');
+    const manual = !!this.engine.manualSession();
     const capability = {
       state: 'unverified' as const,
       verified_at: null,
@@ -534,7 +532,7 @@ export class BridgeService {
         account_verified_at: observed?.verified_at ?? null,
       },
       queue: {
-        waiting_count: this.engine.jobs().filter((j) => j.snapshot.state === 'queued').length,
+        waiting_count: this.engine.queued().length,
         active_job_id: active?.job_id ?? null,
         dispatch_blocked:
           !this.options.port || paused || manual || !!active?.requires_action || !!active?.terminal,
@@ -553,7 +551,7 @@ export class BridgeService {
       },
       active_session: active
         ? this.engine.session(active.session_id)
-        : (this.db.all<Session>('sessions').find((s) => s.control_owner === 'manual') ?? null),
+        : (this.engine.manualSession() ?? null),
       capabilities: observed?.capabilities ?? {
         web_generate: capability,
         web_edit: capability,
