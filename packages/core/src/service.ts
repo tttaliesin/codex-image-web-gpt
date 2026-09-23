@@ -13,6 +13,7 @@ import {
   withoutKey,
   now,
   failure,
+  pathDenied,
   Serial,
   type Session,
   type Job,
@@ -340,7 +341,14 @@ export class BridgeService {
           artifact ? new Roots([path.join(this.options.directory, 'artifacts')]) : this.inputs,
           path.join(this.options.directory, 'inputs', admission.job_id),
           index + 1,
-        );
+        ).catch((error) => {
+          if (artifact || !(error instanceof Fault) || error.code !== 'PATH_DENIED') throw error;
+          throw pathDenied(
+            `Input ${index + 1} is outside the folders this app may read, or reaches one through a link.`,
+            this.options.inputRoots,
+            'Pass an earlier result by artifact_id instead, or ask the user to add its folder under 입력 폴더 in the app settings.',
+          );
+        });
         staged.source = descriptor;
         admission.inputs.push(staged);
         this.db.put('admissions', input.request_id, admission);

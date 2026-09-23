@@ -926,3 +926,46 @@ test('M1 input staging waits only for other submits, never blocks engine command
     await service.close();
   }
 });
+
+test('M1 a refused path tells the caller which folders are allowed and what to do instead', async () => {
+  const env = await setup();
+  const { service } = env;
+  const refusal = async (tool: string, input: unknown) => {
+    const result = await service.call(`web_image_${tool}`, input);
+    assert.equal(result.ok, false);
+    assert.ok(validTool(`web_image_${tool}`, 'output', result));
+    const failure = result.error as { code: string; message: string; next_action: string };
+    assert.equal(failure.code, 'PATH_DENIED');
+    assert.equal(failure.next_action, 'fix_input');
+    return failure.message;
+  };
+  try {
+    const outside = path.join(env.root, 'outside.png');
+    let message = await refusal('submit', submit(outside));
+    assert.match(message, /^Input 1 is outside the folders this app may read/);
+    assert.ok(message.includes(`Allowed: ${env.inputs}.`));
+    assert.match(message, /artifact_id/);
+    assert.ok(!message.includes(outside), 'the refused path itself is not echoed back');
+
+    message = await refusal('export', {
+      export_id: randomUUID(),
+      artifact_ids: [randomUUID()],
+      destination_dir: env.root,
+    });
+    assert.match(message, /^destination_dir is outside the folders this app may save to/);
+    assert.ok(message.includes(`Allowed: ${env.outputs}.`));
+
+    await service.configureFolders([], [env.outputs], async () => {});
+    assert.match(await refusal('submit', submit(outside)), /Allowed: none configured\./);
+
+    // Many long folders still fit the contract's 1024-character message limit.
+    service.options.inputRoots.push(
+      ...Array.from({ length: 40 }, (_, i) => path.join(env.root, `folder-${i}-${'x'.repeat(40)}`)),
+    );
+    message = await refusal('submit', submit(outside));
+    assert.ok(message.length <= 1024);
+    assert.match(message, /…\. Pass an earlier result by artifact_id/);
+  } finally {
+    await service.close();
+  }
+});

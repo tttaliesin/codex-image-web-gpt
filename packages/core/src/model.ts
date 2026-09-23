@@ -48,9 +48,20 @@ export class Fault extends Error {
     readonly code: BridgeError['code'],
     readonly next: BridgeError['next_action'] = 'fix_input',
     readonly retryable = false,
+    // What the MCP caller should do differently; `message` itself stays the bare code.
+    readonly detail?: string,
   ) {
     super(code);
   }
+}
+// A refused path names the folders that are allowed, so Codex can fix the request itself.
+export function pathDenied(summary: string, roots: readonly string[], remedy: string): Fault {
+  const limit = 1024; // Contract maximum for error.message.
+  const list = roots.length ? roots.join('; ') : 'none configured';
+  const room = limit - summary.length - remedy.length - ' Allowed: . '.length;
+  const allowed = list.length <= room ? list : `${list.slice(0, Math.max(0, room - 1))}…`;
+  const message = `${summary} Allowed: ${allowed}. ${remedy}`.slice(0, limit);
+  return new Fault('PATH_DENIED', 'fix_input', false, message);
 }
 export function failure(error: unknown): BridgeError {
   const code = (error as NodeJS.ErrnoException | null)?.code;
@@ -64,7 +75,12 @@ export function failure(error: unknown): BridgeError {
           : code === 'EACCES' || code === 'EPERM'
             ? new Fault('PATH_DENIED')
             : new Fault('IO_ERROR', 'wait', true);
-  return { code: e.code, message: e.code, retryable: e.retryable, next_action: e.next };
+  return {
+    code: e.code,
+    message: e.detail ?? e.code,
+    retryable: e.retryable,
+    next_action: e.next,
+  };
 }
 export const now = () => new Date().toISOString();
 export const digest = (value: unknown): string =>
