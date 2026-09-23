@@ -13,6 +13,7 @@ import {
   withoutKey,
   now,
   failure,
+  pathDenied,
   type Artifact,
   type Export,
 } from '../../core/src/model';
@@ -104,7 +105,14 @@ export class Exporter {
         if (record.snapshot.state !== 'succeeded') this.kick(input.export_id);
         return { deduplicated: true, export: record.snapshot };
       }
-      const destination = await this.roots.destination(input.destination_dir);
+      const destination = await this.roots.destination(input.destination_dir).catch((error) => {
+        if (!(error instanceof Fault) || error.code !== 'PATH_DENIED') throw error;
+        throw pathDenied(
+          'destination_dir is outside the folders this app may save to, or reaches one through a link.',
+          this.roots.roots,
+          'Use one of them or a folder inside it, or ask the user to change 저장 폴더 in the app settings.',
+        );
+      });
       for (const id of input.artifact_ids)
         if (!this.db.get('artifacts', id)) throw new Fault('NOT_FOUND');
       const timestamp = now();
