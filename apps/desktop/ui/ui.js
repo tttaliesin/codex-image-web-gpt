@@ -62,10 +62,19 @@ const setupErrors = {
   INSTALLED_SKILL_CHANGED: '설치 후 수정된 스킬이 있어요. 수정한 내용은 보존했습니다.',
   SKILL_UPDATE_REQUIRES_UNREGISTER:
     '이전 스킬을 갱신하려면 설정에서 연결 해제 후 다시 연결해 주세요. 기존 스킬은 백업됩니다.',
-  CONFIG_MANAGED_BLOCK_CHANGED: 'Codex 설정이 설치 후 변경됐어요. 현재 설정을 보존했습니다.',
+  CONFIG_MANAGED_BLOCK_CHANGED:
+    'Web Image Bridge의 Codex 연결 항목이 변경됐어요. 현재 설정을 보존했습니다.',
+  CONFIG_EDIT_UNSUPPORTED:
+    '연결 설정은 확인했지만, 이 설정 형식에서는 자동 해제를 지원하지 않아요. 현재 설정을 보존했습니다.',
   CONFIG_MANAGED_BLOCK_MISSING:
     'Codex의 연결 설정을 찾지 못했어요. 기존 등록 정보를 확인해 주세요.',
   CODEX_NOT_REGISTERED: '먼저 Codex에 연결 버튼으로 설정을 등록해 주세요.',
+  CODEX_PROFILE_MISMATCH:
+    '앱과 Codex가 서로 다른 프로필을 사용하고 있어요. 앱을 종료한 뒤 설치된 바로가기로 다시 열어주세요.',
+  CODEX_CONFIG_MISMATCH:
+    '앱과 Codex의 연결 설정이 달라요. 설치된 바로가기로 다시 열어 연결 설정을 확인해 주세요.',
+  CODEX_AUTH_HELPER_FAILED:
+    'Codex가 사용할 인증값을 읽지 못했어요. 앱을 다시 연 뒤 연결 확인을 눌러주세요.',
   MCP_CHECK_FAILED: '로컬 연결을 확인하지 못했어요. 앱을 다시 연 뒤 연결 확인을 눌러주세요.',
   INTEGRATION_TARGET_CONFLICT:
     '기존 설치 위치와 설정이 달라요. 바탕화면 바로가기로 앱을 다시 열어주세요.',

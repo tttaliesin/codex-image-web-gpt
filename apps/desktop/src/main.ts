@@ -66,7 +66,7 @@ const context = launchContext({
 });
 const profile: string = context.profile;
 const mcpConfiguration =
-  argument('--mcp-config') ?? (!testing && !argument('--request') ? context.config : undefined);
+  argument('--mcp-config') || (!testing && !argument('--request')) ? context.config : undefined;
 let setup: InstanceType<typeof DesktopSetup> | undefined;
 app.setName('Web Image Bridge');
 app.setPath('userData', path.resolve(profile));
@@ -158,9 +158,9 @@ async function start() {
         if (!mcp) throw Error('MCP_NOT_ENABLED');
         await mcp.service.configureFolders(next.input_roots, next.export_roots, persist);
       },
-      health: async () => {
+      health: async (connection: { url: string; headers: Record<string, string> }) => {
         if (!mcp) throw Error('MCP_NOT_ENABLED');
-        return mcp.check();
+        return mcp.check(connection);
       },
       shortcut: async (installed: { exe: string; profile: string; config: string }) => {
         const shortcutFile = path.join(app.getPath('desktop'), 'Web Image Bridge.lnk');

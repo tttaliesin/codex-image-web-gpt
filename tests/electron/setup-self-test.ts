@@ -19,12 +19,22 @@ export async function setupSelfTest(
   const packageDirectory = path.join(profile, 'package');
   const codex = path.join(profile, 'codex');
   const skill = path.join(profile, 'skills/imagegen');
+  const psLiteral = (value: string) => `'${value.replaceAll("'", "''")}'`;
+  // Exercise the real windowless Electron auth helper against this isolated profile.
+  // The fixture package's executable is intentionally not an installable runtime.
+  const authHelper = [
+    "$ErrorActionPreference = 'Stop'",
+    "$bridgeState = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'current.json') -Raw | ConvertFrom-Json",
+    'Remove-Item Env:ELECTRON_RUN_AS_NODE -ErrorAction SilentlyContinue',
+    `& ${psLiteral(process.execPath)} ${psLiteral(path.resolve(__dirname, '../../..'))} --mcp-headers-helper --profile $bridgeState.profile`,
+    'if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }',
+  ].join('\n');
   for (const [name, value] of Object.entries({
     'runtime/WebImageBridge.exe': 'local installer fixture',
     'runtime/resources/app/package.json': '{}',
     'setup.ps1': '# fixture',
     'runtime/resources/app/scripts/windows/launch.ps1': '# fixture',
-    'runtime/resources/app/scripts/windows/auth-helper.ps1': '# fixture',
+    'runtime/resources/app/scripts/windows/auth-helper.ps1': authHelper,
     'runtime/resources/app/skills/imagegen/SKILL.md':
       '---\nname: imagegen\ndescription: isolated fixture\n---\nTest',
   })) {
@@ -127,7 +137,7 @@ export async function setupSelfTest(
     assert.deepEqual(service.options.inputRoots, [input]);
     pass('native-folder-picker-cancel-select-persist-and-live-permissions');
     await click('#setup-guide [data-setup="connect"]');
-    await until(async () => setup.registered && setup.checked, Boolean, 10000);
+    await until(async () => setup.registered && setup.checked, Boolean, 25000);
     await until(() => ui.evaluate<boolean>('!setupPending'), Boolean, 3000);
     const registered = await readFile(path.join(codex, 'config.toml'), 'utf8');
     assert.ok(registered.startsWith(original.trimEnd()));
@@ -135,6 +145,41 @@ export async function setupSelfTest(
     assert.equal(shortcuts, 1);
     assert.equal(await ui.evaluate(`document.querySelector('#setup-ready').hidden`), false);
     pass('one-click-install-register-and-authenticated-eight-tool-health-check');
+    const foreignSettings = '\n[agents]\nmax_depth = 2 # another app\n';
+    await writeFile(
+      path.join(codex, 'config.toml'),
+      registered.replace(
+        '# BEGIN Web Image Bridge managed integration',
+        '[agents]\n# BEGIN Web Image Bridge managed integration\nmax_depth = 2 # another app',
+      ),
+    );
+    const sharedConfig = await readFile(path.join(codex, 'config.toml'), 'utf8');
+    await setup.connect();
+    await setup.check();
+    assert.equal(await readFile(path.join(codex, 'config.toml'), 'utf8'), sharedConfig);
+    assert.equal(setup.snapshot().checked, true);
+    pass('shared-config-edit-survives-reconnect-and-real-authenticated-mcp-check');
+    const helperFile = path.join(setup.options.root, 'auth-helper.ps1');
+    const savedHelper = await readFile(helperFile);
+    try {
+      await writeFile(
+        helperFile,
+        "ConvertTo-Json -Compress @{ Authorization = ('Bearer ' + ('x' * 43)) }\n",
+      );
+      await assert.rejects(setup.check(), /MCP_CHECK_FAILED/);
+      assert.equal(setup.snapshot().checked, false);
+      await ui.evaluate('update()');
+      assert.equal(await ui.evaluate(`document.querySelector('#setup-ready').hidden`), true);
+      pass('wrong-codex-credentials-fail-real-http-auth-and-clear-connected-ui');
+      await writeFile(helperFile, 'exit 1\n');
+      await assert.rejects(setup.check(), /CODEX_AUTH_HELPER_FAILED/);
+      assert.equal(setup.snapshot().checked, false);
+      pass('failed-helper-never-falls-back-to-app-credentials');
+    } finally {
+      await writeFile(helperFile, savedHelper);
+    }
+    await setup.check();
+    await ui.evaluate('update()');
     const savedClipboard = await clipboard.readText();
     try {
       await click('#setup-guide [data-setup="copy-example"]');
@@ -148,7 +193,10 @@ export async function setupSelfTest(
     assert.deepEqual(service.options.inputRoots, []);
     await click('#settings-panel [data-setup="disconnect"]');
     await until(async () => !setup.registered, Boolean, 3000);
-    assert.equal((await readFile(path.join(codex, 'config.toml'), 'utf8')).trim(), original.trim());
+    assert.deepEqual(
+      require('smol-toml').parse(await readFile(path.join(codex, 'config.toml'), 'utf8')),
+      require('smol-toml').parse(original + foreignSettings),
+    );
     await readFile(path.join(profile, 'm1/auth/mcp-token.enc'));
     pass('revoke-folder-and-disconnect-preserve-original-settings-and-login-profile');
     assert.equal(await new Cdp(view.webContents).evaluate(`typeof window.bridge`), 'undefined');

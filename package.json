@@ -12,6 +12,7 @@
     "skills/imagegen",
     "scripts/install.cjs",
     "scripts/lib/installation.cjs",
+    "scripts/lib/codex-config.cjs",
     "scripts/lib/desktop-setup.cjs",
     "scripts/windows"
   ],

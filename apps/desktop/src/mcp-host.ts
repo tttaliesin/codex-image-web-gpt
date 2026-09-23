@@ -66,12 +66,13 @@ export async function hostMcp(
       copyToken() {
         clipboard.writeText(token);
       },
-      async check() {
+      async check(connection: { url: string; headers: Record<string, string> }) {
+        if (connection.url !== server.url) throw Error('CODEX_CONFIG_MISMATCH');
         const client = new Client({ name: 'web-image-bridge-setup', version: app.getVersion() });
         try {
           await client.connect(
-            new StreamableHTTPClientTransport(new URL(server.url), {
-              requestInit: { headers: { Authorization: `Bearer ${token}` } },
+            new StreamableHTTPClientTransport(new URL(connection.url), {
+              requestInit: { headers: connection.headers },
             }),
           );
           const tools = await client.listTools();
@@ -79,8 +80,10 @@ export async function hostMcp(
             .structuredContent as { ok?: boolean } | undefined;
           if (!status?.ok || tools.tools.length !== 8) throw Error('MCP_CHECK_FAILED');
           return { tools: tools.tools.length };
+        } catch {
+          throw Error('MCP_CHECK_FAILED');
         } finally {
-          await client.close();
+          await client.close().catch(() => {});
         }
       },
       validate(file: string, id: string) {

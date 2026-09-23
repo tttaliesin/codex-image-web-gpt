@@ -34,7 +34,17 @@ test('M4 install, update and rollback preserve profile, configuration and old ve
   const root = path.join(base, 'installed'),
     profile = path.join(base, 'existing-profile');
   await fs.mkdir(profile, { recursive: true });
-  await fs.writeFile(path.join(profile, 'user-data'), 'preserve');
+  for (const [file, content] of Object.entries({
+    'user-data': 'preserve',
+    'Local State': 'isolated-fixture-encryption-state',
+    'm1/auth/mcp-token.enc': 'isolated-fixture-encrypted-credential',
+    'm1/jobs.sqlite': 'isolated-fixture-job-history',
+    'Partitions/web-image-primary/Network/Cookies': 'isolated-fixture-login',
+  })) {
+    await fs.mkdir(path.dirname(path.join(profile, file)), { recursive: true });
+    await fs.writeFile(path.join(profile, file), content);
+  }
+  const preserved = await install.files(profile);
   const first = await install.install({
     root,
     profile,
@@ -42,7 +52,10 @@ test('M4 install, update and rollback preserve profile, configuration and old ve
   });
   const configuration = await fs.readFile(first.config);
   await install.install({ root, packageDirectory: await fixture('0.1.0-second') });
+  assert.deepEqual(await install.files(profile), preserved);
+  assert.equal((await install.json(path.join(root, 'current.json'))).profile, profile);
   await install.rollback({ root });
+  assert.deepEqual(await install.files(profile), preserved);
   assert.equal((await install.json(path.join(root, 'current.json'))).build, first.build);
   assert.deepEqual(await fs.readFile(first.config), configuration);
   assert.equal(await fs.readFile(path.join(profile, 'user-data'), 'utf8'), 'preserve');
@@ -139,4 +152,106 @@ test('M4 interrupted registration and removal can resume from their journal', as
   await install.unregister({ root });
   assert.equal((await install.json(receiptFile)).active, false);
   assert.equal(await fs.readFile(configuration, 'utf8'), remaining);
+});
+
+async function sharedConfigFixture(name) {
+  const root = path.join(base, name);
+  const codex = path.join(root, 'codex');
+  const skill = path.join(root, 'skills/imagegen');
+  const bundled = path.join(root, 'bundled/SKILL.md');
+  await install.install({ root, packageDirectory: await fixture(`0.2.0-${name}`) });
+  await fs.mkdir(codex, { recursive: true });
+  await fs.mkdir(path.dirname(bundled), { recursive: true });
+  await fs.writeFile(bundled, 'upstream');
+  const configFile = path.join(codex, 'config.toml');
+  await fs.writeFile(configFile, '[agents]\n');
+  const options = { root, codex, skill, bundled };
+  await install.register(options);
+  return { ...options, options, configFile };
+}
+
+test('shared config: foreign settings inside legacy markers survive connect and disconnect', async () => {
+  const { root, options, configFile } = await sharedConfigFixture('foreign-in-marker');
+  const text = (await fs.readFile(configFile, 'utf8'))
+    .replace(
+      '# BEGIN Web Image Bridge managed integration',
+      '# BEGIN Web Image Bridge managed integration\nmax_depth = 2 # owned by another app',
+    )
+    .replace(
+      '[[skills.config]]',
+      '# another app comment\n[mcp_servers.another_app]\nurl = "http://localhost:9999/mcp"\n[[skills.config]]',
+    );
+  await fs.writeFile(configFile, text);
+  await install.register(options);
+  assert.equal(await fs.readFile(configFile, 'utf8'), text);
+  // An idempotent registration has identical before/after text; its journal must
+  // still recover as an existing registration after an interrupted receipt write.
+  const receiptFile = path.join(root, 'integration.json');
+  await install.atomic(receiptFile, {
+    ...(await install.json(receiptFile)),
+    phase: 'registering',
+    before_sha256: install.hash(text),
+  });
+  await install.register(options);
+  assert.equal((await install.json(receiptFile)).phase, 'registered');
+  assert.equal(await fs.readFile(configFile, 'utf8'), text);
+  await install.unregister({ root });
+  const remaining = await fs.readFile(configFile, 'utf8');
+  assert.equal(TOML.parse(remaining).agents.max_depth, 2);
+  assert.deepEqual(TOML.parse(remaining).mcp_servers, {
+    another_app: { url: 'http://localhost:9999/mcp' },
+  });
+  assert.match(remaining, /# owned by another app/);
+  assert.match(remaining, /# another app comment/);
+  assert.equal(TOML.parse(remaining).skills, undefined);
+});
+
+test('shared config: TOML reformatting and reordering do not change ownership', async () => {
+  const { root, options, configFile } = await sharedConfigFixture('reformatted');
+  const parsed = TOML.parse(await fs.readFile(configFile, 'utf8'));
+  const text = TOML.stringify({
+    notes:
+      'example:\n[mcp_servers.web_image_bridge]\n# BEGIN Web Image Bridge managed integration\n',
+    skills: {
+      config: [
+        { path: 'other.md', enabled: true },
+        ...parsed.skills.config,
+        { path: 'last.md', enabled: false },
+      ],
+    },
+    agents: { max_depth: 2 },
+    mcp_servers: parsed.mcp_servers,
+  })
+    .replace('[mcp_servers.web_image_bridge]', "[ 'mcp_servers' . 'web_image_bridge' ]")
+    .replaceAll('\n', '\r\n');
+  await fs.writeFile(configFile, text);
+  await install.register(options);
+  assert.equal(await fs.readFile(configFile, 'utf8'), text);
+  await install.unregister({ root });
+  const remaining = TOML.parse(await fs.readFile(configFile, 'utf8'));
+  assert.equal(remaining.agents.max_depth, 2);
+  assert.equal(remaining.notes, TOML.parse(text).notes);
+  assert.deepEqual(remaining.skills.config, [
+    { path: 'other.md', enabled: true },
+    { path: 'last.md', enabled: false },
+  ]);
+  assert.equal(remaining.mcp_servers, undefined);
+});
+
+test('shared config: actual edits to owned settings are rejected without writes', async () => {
+  const { root, options, configFile } = await sharedConfigFixture('owned-conflict');
+  const original = await fs.readFile(configFile, 'utf8');
+  const skillFiles = await install.files(options.skill);
+  const receipt = await fs.readFile(path.join(root, 'integration.json'));
+  for (const changed of [
+    original.replace('43179', '43180'),
+    original.replace('enabled = false', 'enabled = true'),
+  ]) {
+    await fs.writeFile(configFile, changed);
+    await assert.rejects(install.register(options), /CONFIG_MANAGED_BLOCK_CHANGED/);
+    await assert.rejects(install.unregister({ root }), /CONFIG_MANAGED_BLOCK_CHANGED/);
+    assert.equal(await fs.readFile(configFile, 'utf8'), changed);
+    assert.deepEqual(await install.files(options.skill), skillFiles);
+    assert.deepEqual(await fs.readFile(path.join(root, 'integration.json')), receipt);
+  }
 });

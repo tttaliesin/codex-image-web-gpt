@@ -6,6 +6,7 @@ const path = require('node:path');
 const { createHash, randomUUID } = require('node:crypto');
 const { isDeepStrictEqual } = require('node:util');
 const TOML = require('smol-toml');
+const { assertManagedConfig, removeManagedConfig } = require('./codex-config.cjs');
 const product = 'web-image-bridge';
 const begin = '# BEGIN Web Image Bridge managed integration';
 const end = '# END Web Image Bridge managed integration';
@@ -161,35 +162,19 @@ async function install({ root, packageDirectory, profile, config }) {
   await atomic(stateFile, state);
   return state;
 }
-function stripManaged(text, expectedBlock) {
-  const start = text.indexOf(begin),
-    finish = text.indexOf(end);
-  if (start < 0 && finish < 0) {
-    if (expectedBlock) throw Error('CONFIG_MANAGED_BLOCK_MISSING');
-    return text;
-  }
-  if (
-    start < 0 ||
-    finish < start ||
-    text.indexOf(begin, start + begin.length) >= 0 ||
-    text.indexOf(end, finish + end.length) >= 0
-  )
-    throw Error('CONFIG_MANAGED_BLOCK_CONFLICT');
-  const last = finish + end.length;
-  const block = text.slice(start, last);
-  if (!expectedBlock || block !== expectedBlock) throw Error('CONFIG_MANAGED_BLOCK_CHANGED');
-  return text.slice(0, start) + text.slice(last);
+function integrationServer(root, port) {
+  return {
+    url: `http://127.0.0.1:${port}/mcp`,
+    http_headers_helper: `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${path.join(root, 'auth-helper.ps1')}"`,
+    startup_timeout_sec: 20,
+    tool_timeout_sec: 45,
+    enabled: true,
+  };
 }
 function integrationBlock({ root, state, bundled }) {
   const config = {
     mcp_servers: {
-      web_image_bridge: {
-        url: `http://127.0.0.1:${state.port}/mcp`,
-        http_headers_helper: `powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${path.join(root, 'auth-helper.ps1')}"`,
-        startup_timeout_sec: 20,
-        tool_timeout_sec: 45,
-        enabled: true,
-      },
+      web_image_bridge: integrationServer(root, state.port),
     },
     ...(bundled ? { skills: { config: [{ path: bundled, enabled: false }] } } : {}),
   };
@@ -226,15 +211,20 @@ async function register({ root, codex, skill, bundled }) {
   const recoveringRegistration =
     prior?.active &&
     prior.phase === 'registering' &&
-    !text.includes(begin) &&
-    hash(text) === prior.before_sha256;
-  const base = recoveringRegistration
-    ? text
-    : stripManaged(text, prior?.active ? prior.block : undefined);
+    hash(text) === prior.before_sha256 &&
+    !TOML.parse(text, { integersAsBigInt: 'asNeeded' }).mcp_servers?.web_image_bridge;
+  const registered = prior?.active && !recoveringRegistration;
+  if (registered) assertManagedConfig(text, prior.block);
+  const config = await json(state.config);
+  validateConfig(config);
+  const block = integrationBlock({ root, state: { port: config.port ?? 43179 }, bundled });
+  const unchanged = registered && isDeepStrictEqual(TOML.parse(prior.block), TOML.parse(block));
+  const base = registered && !unchanged ? removeManagedConfig(text, prior.block) : text;
   const parsed = TOML.parse(base, { integersAsBigInt: 'asNeeded' });
   if (
-    parsed.mcp_servers?.web_image_bridge ||
-    (bundled && parsed.skills?.config?.some((x) => path.resolve(x.path) === bundled))
+    !unchanged &&
+    (parsed.mcp_servers?.web_image_bridge ||
+      (bundled && parsed.skills?.config?.some((x) => path.resolve(x.path) === bundled)))
   )
     throw Error('EXISTING_CONFIG_CONFLICT');
   const source = path.join(state.directory, 'runtime/resources/app/skills/imagegen');
@@ -245,19 +235,18 @@ async function register({ root, codex, skill, bundled }) {
     if (!isDeepStrictEqual(sourceFiles, prior.skillFiles))
       throw Error('SKILL_UPDATE_REQUIRES_UNREGISTER');
   }
-  const config = await json(state.config);
-  validateConfig(config);
-  const block = integrationBlock({ root, state: { port: config.port ?? 43179 }, bundled });
-  const updated = base.replace(/\s*$/, '') + '\n\n' + block + '\n';
-  const check = TOML.parse(updated, { integersAsBigInt: 'asNeeded' });
-  delete check.mcp_servers.web_image_bridge;
-  if (!Object.keys(check.mcp_servers).length && !parsed.mcp_servers) delete check.mcp_servers;
-  if (bundled) {
-    check.skills.config.pop();
-    if (!check.skills.config.length && !parsed.skills?.config) delete check.skills.config;
-    if (!Object.keys(check.skills).length && !parsed.skills) delete check.skills;
+  const updated = unchanged ? text : base.replace(/\s*$/, '') + '\n\n' + block + '\n';
+  if (!unchanged) {
+    const check = TOML.parse(updated, { integersAsBigInt: 'asNeeded' });
+    delete check.mcp_servers.web_image_bridge;
+    if (!Object.keys(check.mcp_servers).length && !parsed.mcp_servers) delete check.mcp_servers;
+    if (bundled) {
+      check.skills.config.pop();
+      if (!check.skills.config.length && !parsed.skills?.config) delete check.skills.config;
+      if (!Object.keys(check.skills).length && !parsed.skills) delete check.skills;
+    }
+    if (!isDeepStrictEqual(parsed, check)) throw Error('UNRELATED_CONFIG_CHANGED');
   }
-  if (!isDeepStrictEqual(parsed, check)) throw Error('UNRELATED_CONFIG_CHANGED');
   const backup = path.join(root, 'backups', `codex-${Date.now()}-${randomUUID()}.toml`);
   await atomic(backup, text);
   if (!(await exists(skill))) {
@@ -298,10 +287,8 @@ async function unregister({ root }) {
   const configFile = path.join(receipt.codex, 'config.toml'),
     text = await fs.readFile(configFile, 'utf8');
   const recoveringRemoval =
-    receipt.phase === 'unregistering' &&
-    !text.includes(begin) &&
-    hash(text) === receipt.after_sha256;
-  const updated = recoveringRemoval ? text : stripManaged(text, receipt.block);
+    receipt.phase === 'unregistering' && hash(text) === receipt.after_sha256;
+  const updated = recoveringRemoval ? text : removeManagedConfig(text, receipt.block);
   TOML.parse(updated, { integersAsBigInt: 'asNeeded' });
   await noLinks(receipt.skill);
   const savedSkill = inside(
@@ -315,6 +302,7 @@ async function unregister({ root }) {
     throw Error('INSTALLED_SKILL_CHANGED');
   await noLinks(savedSkill);
   await fs.mkdir(path.dirname(savedSkill), { recursive: true });
+  if ((await fs.readFile(configFile, 'utf8')) !== text) throw Error('CONFIG_CONCURRENT_EDIT');
   await atomic(receiptFile, {
     ...receipt,
     phase: 'unregistering',
@@ -352,4 +340,5 @@ module.exports = {
   json,
   hash,
   validateConfig,
+  integrationServer,
 };

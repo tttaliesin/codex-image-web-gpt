@@ -2,7 +2,45 @@ const fs = require('node:fs/promises');
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
+const { execFile } = require('node:child_process');
+const { promisify, isDeepStrictEqual } = require('node:util');
 const install = require('./installation.cjs');
+const { assertManagedConfig } = require('./codex-config.cjs');
+const runFile = promisify(execFile);
+const samePath = (left, right) =>
+  typeof left === 'string' &&
+  typeof right === 'string' &&
+  path.isAbsolute(left) &&
+  path.isAbsolute(right) &&
+  path.relative(path.resolve(left), path.resolve(right)) === '';
+
+async function readCodexHeaders(root, run = runFile) {
+  try {
+    // Run only our registered helper, never an arbitrary command from config.toml.
+    const { stdout } = await run(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-ExecutionPolicy',
+        'Bypass',
+        '-File',
+        path.join(root, 'auth-helper.ps1'),
+      ],
+      { cwd: root, windowsHide: true, encoding: 'utf8', timeout: 15000, maxBuffer: 65536 },
+    );
+    const headers = JSON.parse(stdout.trim().replace(/^\uFEFF/, ''));
+    if (
+      typeof headers?.Authorization !== 'string' ||
+      !/^Bearer [A-Za-z0-9_-]{43}$/.test(headers.Authorization)
+    )
+      throw Error('CODEX_AUTH_HELPER_FAILED');
+    return { Authorization: headers.Authorization };
+  } catch {
+    // Child-process errors can include stdout/stderr containing credentials.
+    throw Error('CODEX_AUTH_HELPER_FAILED');
+  }
+}
 
 async function optionalJson(file) {
   try {
@@ -79,17 +117,29 @@ class DesktopSetup {
     }
     const receipt = await optionalJson(path.join(this.options.root, 'integration.json'));
     this.registered = false;
+    this.checked = false;
+    this.connectionConfiguration = undefined;
     this.integrationError = null;
     if (!receipt?.active) return;
     try {
       if (receipt.product !== 'web-image-bridge' || receipt.phase !== 'registered')
         throw Error('INTEGRATION_NEEDS_REPAIR');
+      const installed = await optionalJson(path.join(this.options.root, 'current.json'));
+      if (installed?.product !== 'web-image-bridge') throw Error('INTEGRATION_NEEDS_REPAIR');
+      if (!samePath(installed.profile, this.options.profile)) throw Error('CODEX_PROFILE_MISMATCH');
+      if (!samePath(installed.config, this.options.config)) throw Error('CODEX_CONFIG_MISMATCH');
       const config = await fs.readFile(path.join(receipt.codex, 'config.toml'), 'utf8');
-      if (!config.includes(receipt.block)) throw Error('CONFIG_MANAGED_BLOCK_CHANGED');
+      const server = assertManagedConfig(config, receipt.block).mcp_servers.web_image_bridge;
+      const expected = install.integrationServer(
+        this.options.root,
+        this.configuration.port ?? 43179,
+      );
+      if (!isDeepStrictEqual(server, expected)) throw Error('CODEX_CONFIG_MISMATCH');
       const actual = await install.files(receipt.skill);
       if (JSON.stringify(actual) !== JSON.stringify(receipt.skillFiles))
         throw Error('INSTALLED_SKILL_CHANGED');
       this.registered = true;
+      this.connectionConfiguration = server;
     } catch (error) {
       this.checked = false;
       this.integrationError = /^[A-Z_]+$/.test(error.message)
@@ -174,12 +224,23 @@ class DesktopSetup {
   async check() {
     return this.exclusive(async () => {
       this.checked = false;
-      await this.refresh();
-      if (!this.registered) throw Error('CODEX_NOT_REGISTERED');
-      const result = await this.options.health();
-      if (result.tools !== 8) throw Error('MCP_CHECK_FAILED');
-      this.checked = true;
-      return { verified: true, tools: result.tools };
+      try {
+        await this.refresh();
+        if (!this.registered) throw Error(this.integrationError ?? 'CODEX_NOT_REGISTERED');
+        const headers = await (this.options.readHeaders ?? readCodexHeaders)(this.options.root);
+        const result = await this.options.health({
+          url: this.connectionConfiguration.url,
+          headers,
+        });
+        if (result.tools !== 8) throw Error('MCP_CHECK_FAILED');
+        this.checked = true;
+        return { verified: true, tools: result.tools };
+      } catch (error) {
+        this.integrationError = /^[A-Z_]+$/.test(error.message)
+          ? error.message
+          : 'MCP_CHECK_FAILED';
+        throw Error(this.integrationError);
+      }
     });
   }
 }
@@ -202,12 +263,12 @@ function launchContext(options) {
   return {
     ...options,
     profile: path.resolve(
-      options.profile ?? previous?.profile ?? path.join(options.root, 'profile'),
+      previous?.profile ?? options.profile ?? path.join(options.root, 'profile'),
     ),
     config: path.resolve(
-      options.config ?? previous?.config ?? path.join(options.root, 'mcp-config.json'),
+      previous?.config ?? options.config ?? path.join(options.root, 'mcp-config.json'),
     ),
     packageDirectory: options.packaged ? path.resolve(options.appRoot, '../../..') : undefined,
   };
 }
-module.exports = { DesktopSetup, launchContext };
+module.exports = { DesktopSetup, launchContext, readCodexHeaders };
