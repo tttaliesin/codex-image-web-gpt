@@ -188,3 +188,56 @@ test('export temps never outlive their item in the user folder, except as adopti
     await service.close();
   }
 });
+
+test('downloads are removed once a job is final, and kept while a web run may continue', async () => {
+  const env = await setup();
+  let service = env.service;
+  const eventually = async (check: () => Promise<boolean>) => {
+    const deadline = Date.now() + 3000;
+    while (!(await check())) {
+      if (Date.now() > deadline) throw Error('cleanup condition timeout');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+  };
+  const downloads = (jobId: string) => path.join(env.directory, 'downloads', jobId);
+  try {
+    const succeeded = await env.submit();
+    assert.equal(succeeded.state, 'succeeded');
+    await eventually(async () => !(await exists(downloads(succeeded.job_id))));
+    const listed = await service.call('web_image_artifacts', { job_id: succeeded.job_id });
+    assert.equal(listed.ok, true, JSON.stringify(listed));
+
+    // The second file is refused: the job stays open with its first download on disk.
+    env.plan.count = 2;
+    env.plan.outside = true;
+    const open = await env.submit();
+    assert.equal(open.state, 'unknown');
+    assert.equal(await exists(downloads(open.job_id)), true);
+    const canceled = (
+      (await service.call('web_image_control', {
+        request_id: randomUUID(),
+        job_id: open.job_id,
+        expected_revision: open.revision,
+        action: 'cancel',
+      })) as { data: { job: { revision: number; remote_may_continue: boolean } } }
+    ).data.job;
+    assert.equal(canceled.remote_may_continue, true);
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    assert.equal(await exists(downloads(open.job_id)), true);
+    await service.releaseRemote(open.job_id, canceled.revision);
+    await eventually(async () => !(await exists(downloads(open.job_id))));
+
+    // Leftovers from a crash are swept at startup; unknown directories are not touched.
+    await mkdir(downloads(succeeded.job_id), { recursive: true });
+    await writeFile(path.join(downloads(succeeded.job_id), 'stale.png'), 'stale');
+    const foreign = [downloads('not-a-job'), downloads(randomUUID())];
+    for (const directory of foreign) await mkdir(directory, { recursive: true });
+    await service.close();
+    service = new BridgeService(env.options);
+    await service.ready;
+    await eventually(async () => !(await exists(downloads(succeeded.job_id))));
+    for (const directory of foreign) assert.equal(await exists(directory), true);
+  } finally {
+    await service.close();
+  }
+});
