@@ -190,12 +190,11 @@ export class BrowserExecution implements ExecutionPort {
           )
             throw new Fault('STATE_CONFLICT');
           const parent = context.parent()?.browser_state as BrowserState | undefined;
-          if (
-            !parent?.response_id ||
-            parent.conversation_url !== initial.url ||
-            initial.messages.at(-1)?.id !== parent.response_id
-          )
+          if (!parent?.response_id || parent.conversation_url !== initial.url)
             throw new Fault('STATE_CONFLICT');
+          // Another message, such as a canceled request, now follows the parent result, so
+          // an edit here would build on something other than the parent image.
+          if (initial.messages.at(-1)?.id !== parent.response_id) throw Error('FOLLOWUP_DIVERGED');
         }
         await context.phase('attach');
         await this.adapter.attach(
@@ -389,6 +388,13 @@ export class BrowserExecution implements ExecutionPort {
           next_action:
             context.job().snapshot.submission_state === 'not_sent' ? 'resume' : 'reconcile',
         },
+        FOLLOWUP_DIVERGED: {
+          code: 'STATE_CONFLICT',
+          message:
+            'The conversation has newer messages after the parent result, so this follow-up was not sent. Submit a new request without session_id, using the parent artifact as an input.',
+          retryable: false,
+          next_action: 'fix_input',
+        },
         OBSERVATION_TIMEOUT: {
           code: 'ADAPTER_UNAVAILABLE',
           message: 'Observation timed out; generation outcome is not known.',
@@ -404,7 +410,13 @@ export class BrowserExecution implements ExecutionPort {
           retryable: false,
           next_action: 'open_app',
         } as BridgeError);
-      if (code === 'GENERATION_REJECTED' && context.job().snapshot.submission_state === 'confirmed')
+      // Final outcomes fail at once: waiting would only hold the queue for a job that cannot
+      // succeed. A diverged follow-up sent nothing, so no web run is left behind.
+      if (
+        (code === 'GENERATION_REJECTED' &&
+          context.job().snapshot.submission_state === 'confirmed') ||
+        (code === 'FOLLOWUP_DIVERGED' && context.job().snapshot.submission_state === 'not_sent')
+      )
         await context.fail(reason);
       else await context.waitForUser(reason);
       this.options.attention(reason.code);
