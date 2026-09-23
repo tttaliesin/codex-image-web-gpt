@@ -355,6 +355,17 @@ function render(state) {
   } else if (job?.state === 'queued' && !state.busy) {
     heading = '작업이 시작되기를 기다리고 있어요';
     notice = '요청을 대기열에 보관했습니다. 앞선 작업과 필요한 확인이 끝나면 이어서 시작합니다.';
+  } else if (
+    // Only a diverged follow-up fails unsent with fix_input; a rejection is always confirmed.
+    job?.state === 'failed' &&
+    job.submission_state === 'not_sent' &&
+    job.error?.code === 'STATE_CONFLICT' &&
+    job.error.next_action === 'fix_input'
+  ) {
+    heading = '새 대화로 다시 요청해 주세요';
+    notice =
+      '이어서 편집할 대화에 다른 메시지가 먼저 추가돼 이 요청은 보내지 않았어요. Codex에 새 대화로 다시 요청하면 이전 결과 이미지를 입력으로 편집합니다.';
+    statusTone = 'warning';
   } else if (job?.requires_action || job?.state === 'failed') {
     heading =
       job?.state === 'failed' ? '작업을 완료하지 못했어요' : '작업을 이어가려면 확인이 필요해요';
