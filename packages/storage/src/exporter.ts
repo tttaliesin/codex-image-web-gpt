@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { copyFile, link as hardLink, unlink, lstat, open } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import type { ContractTypes } from '../../contracts/src';
-import { Database } from './database';
+import { Database, where } from './database';
 import { Roots, noLinks } from './roots';
 import { inspectImage } from './files';
 import {
@@ -34,8 +34,8 @@ export class Exporter {
     private link: (existing: string, target: string) => Promise<void> = hardLink,
   ) {}
   recover() {
-    for (const record of this.db.all<ExportRecord>('exports'))
-      if (record.snapshot.state === 'copying') this.kick(record.snapshot.export_id);
+    for (const record of this.db.select<ExportRecord>('exports', where.copyingExport))
+      this.kick(record.snapshot.export_id);
   }
   async idle() {
     await this.serial.run(() => undefined);
@@ -178,9 +178,7 @@ export class Exporter {
                 throw e;
               },
             );
-            const reserved = this.db
-              .all<ExportRecord>('exports')
-              .some((r) => Object.values(r.targets).includes(target!));
+            const reserved = this.db.select('exports', where.exportTarget, target).length > 0;
             if (!exists && !reserved) break;
             if (record.snapshot.collision === 'error') throw new Fault('EXPORT_CONFLICT');
             version++;

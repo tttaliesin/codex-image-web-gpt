@@ -398,17 +398,14 @@ async function start() {
       web_execution: !!webExecution,
       operations: operations?.snapshot() ?? null,
       busy: isBusy(),
-      recent_jobs: (mcp?.service.engine.jobs() ?? [])
-        .slice(-8)
-        .reverse()
-        .map(({ snapshot: job }) => ({
-          job_id: job.job_id,
-          mode: job.mode,
-          state: job.state,
-          requires_action: job.requires_action,
-          created_at: job.created_at,
-          artifact_count: job.artifact_ids.length,
-        })),
+      recent_jobs: (mcp?.service.engine.latest(8) ?? []).map(({ snapshot: job }) => ({
+        job_id: job.job_id,
+        mode: job.mode,
+        state: job.state,
+        requires_action: job.requires_action,
+        created_at: job.created_at,
+        artifact_count: job.artifact_ids.length,
+      })),
       settings: {
         mcp_endpoint: mcp?.url ?? null,
         input_roots: configuration?.input_roots ?? [],
