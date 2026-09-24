@@ -126,6 +126,13 @@ export async function operationsSelfTest(
       ),
       false,
     );
+    // Step labels stay on one line beside their number circle.
+    assert.equal(
+      await ui.evaluate(
+        `[...document.querySelectorAll('.progress-track li > span:last-child')].every(s=>{const r=s.getBoundingClientRect();return r.height<20&&r.width>22;})`,
+      ),
+      true,
+    );
     await capture(`workspace-${width}.png`);
     await navigate('browser');
   }

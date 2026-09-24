@@ -79,6 +79,8 @@ Pick **한국어** or **English** at the top of the setup guide first. You can c
 
 When it's done, you can start the app from the **Web Image Bridge** shortcut on your desktop.
 
+The setup guide leaves the workspace once the first job is recorded or you choose **Close guide**. To show it again, use **Settings → Setup guide → Show again**.
+
 Your existing Codex settings are backed up. Sign-in, model and other settings are kept.
 
 If an existing skill or server entry with the same name conflicts, the app tells you and stops without overwriting unrelated files.
@@ -105,7 +107,7 @@ Changes apply right away when no job is running or waiting.
 
 **Language:** switch between 한국어 and English in **Settings → Language**. The app, tray menu and confirmation dialogs change together.
 
-**Updating:** quit the old app from the tray, run `WebImageBridge.exe` from the new ZIP, then click **Update app**.
+**Updating:** quit the old app from the tray, run `WebImageBridge.exe` from the new ZIP, then click **Update app** in the workspace notice.
 
 Sign-in, job history, folder settings and originals are kept, and the desktop shortcut points to the new version.
 

@@ -29,14 +29,38 @@ function setLanguage(value) {
   setSurface(surface);
 }
 
+// The workspace shows the setup guide only until setup is done; settings keep every control.
+// Until the user closes or reopens it, the first recorded job counts as done.
+function guideOpen(state) {
+  return !!state.setup && (state.setup_guide ?? !state.recent_jobs?.length);
+}
 function renderSetup(state) {
   const setup = state.setup;
-  $('#setup-guide').hidden = !setup;
-  if (!setup) return;
+  const guide = guideOpen(state);
+  $('#setup-guide').hidden = !guide;
+  if (!setup) {
+    $('#setup-notice').hidden = true;
+    return;
+  }
   const folders = !!state.settings?.export_roots?.length;
   const login = state.page_status === 'ready';
   const connected = setup.registered && setup.checked;
   const completed = [folders, login, connected];
+  const shadow = !!setup.shadow_copies?.length;
+  // Outside the guide, only an update or an old install needs the user's hand.
+  $('#setup-notice').hidden = guide || !(setup.update_available || shadow);
+  text(
+    '#setup-notice-title',
+    setup.update_available ? t('noticeUpdateTitle') : t('noticeShadowTitle'),
+  );
+  text(
+    '#setup-notice-body',
+    setup.update_available
+      ? t('noticeUpdateBody')
+      : shadow
+        ? t('codexHintShadow', setup.shadow_copies.join(', '))
+        : '',
+  );
   ['folders', 'login', 'codex'].forEach((name, index) => {
     const step = $(`#setup-${name}`);
     step.dataset.complete = String(completed[index]);
@@ -62,15 +86,22 @@ function renderSetup(state) {
               ? t('codexHintRegistered')
               : t('codexHint'),
   );
+  // Settings carry the same detail the guide shows, since the guide may be closed.
   text(
     '#integration-setting',
     setup.error
       ? t('setupErrors')[setup.error] || t('integrationUnknownError')
-      : connected
-        ? t('integrationConnected')
-        : setup.registered
-          ? t('integrationRegistered')
-          : t('integrationNone'),
+      : shadow
+        ? t('codexHintShadow', setup.shadow_copies.join(', '))
+        : setup.skill_conflict && !setup.registered
+          ? t('codexHintSkill', setup.skill_conflict)
+          : setup.update_available
+            ? t('integrationUpdate')
+            : connected
+              ? t('integrationConnected')
+              : setup.registered
+                ? t('integrationRegistered')
+                : t('integrationNone'),
   );
   $('#setup-ready').hidden = !completed.every(Boolean);
   const allowed = {
@@ -115,6 +146,10 @@ function renderSetup(state) {
     if (action === 'check') button.hidden = !setup.registered;
     if (action === 'replace-skill') button.hidden = !setup.skill_conflict || setup.registered;
     if (action === 'retire-shadow') button.hidden = !setup.shadow_copies?.length;
+  });
+  $('#setup-notice [data-setup="connect"]').hidden = !setup.update_available;
+  document.querySelectorAll('[data-guide]').forEach((button) => {
+    button.disabled = setupPending;
   });
 }
 
@@ -431,6 +466,23 @@ document.querySelectorAll('[data-language]').forEach((button) =>
       await update();
     } catch {
       showError(t('languageFailed'));
+    }
+  }),
+);
+document.querySelectorAll('[data-guide]').forEach((button) =>
+  button.addEventListener('click', async () => {
+    const open = button.dataset.guide === 'open';
+    try {
+      await window.bridge.guide(open);
+      if (open) {
+        await window.bridge.surface('workspace');
+        setSurface('workspace');
+        $('#setup-guide').open = true;
+      }
+      await update();
+      if (open) $('#setup-guide').scrollIntoView({ block: 'start' });
+    } catch {
+      showError(t('guideFailed'));
     }
   }),
 );

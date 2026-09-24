@@ -201,12 +201,34 @@
             <div id="setup-ready" class="setup-ready" hidden>
               <span data-i18n="setupReady"
                 >준비됐어요. Codex를 한 번 다시 시작하고 첫 이미지를 요청하세요.</span
-              ><button class="button primary" data-setup="copy-example" data-i18n="copyExample">
-                첫 요청 복사
-              </button>
+              ><span class="setting-actions"
+                ><button class="button secondary" data-guide="close" data-i18n="guideClose">
+                  안내 닫기</button
+                ><button class="button primary" data-setup="copy-example" data-i18n="copyExample">
+                  첫 요청 복사
+                </button></span
+              >
             </div>
             <p id="setup-feedback" class="setup-feedback" role="status" aria-live="polite"></p>
           </details>
+          <div id="setup-notice" class="setup-notice" role="status" hidden>
+            <div>
+              <strong id="setup-notice-title"></strong>
+              <p id="setup-notice-body"></p>
+            </div>
+            <div class="setting-actions">
+              <button class="button primary" data-setup="connect" data-i18n="updateApp">
+                앱 업데이트</button
+              ><button
+                class="button primary"
+                data-setup="retire-shadow"
+                data-i18n="retireShadow"
+                hidden
+              >
+                이전 설치본 정리
+              </button>
+            </div>
+          </div>
           <section class="current-work" aria-labelledby="current-title">
             <div class="work-heading">
               <span class="section-label" data-i18n="currentWork">현재 작업</span
@@ -423,13 +445,13 @@
             </div>
             <div class="setting-row">
               <div>
-                <strong data-i18n="reconnectTitle">페이지 연결 복구</strong>
-                <p data-i18n="reconnectBody">
-                  페이지 제어가 끊겼을 때 기존 세션에 다시 연결합니다.
+                <strong data-i18n="guideTitle">시작 안내</strong>
+                <p data-i18n="guideBody">
+                  폴더 선택, ChatGPT 로그인, Codex 연결 단계를 작업 공간에 다시 표시합니다.
                 </p>
               </div>
-              <button class="button secondary" data-action="reconnect" data-i18n="reconnect">
-                연결 복구
+              <button class="button secondary" data-guide="open" data-i18n="guideOpen">
+                다시 보기
               </button>
             </div>
           </section>
@@ -462,7 +484,18 @@
             </div>
           </section>
           <details class="advanced-settings">
-            <summary data-i18n="advancedTitle">고급 연결 정보</summary>
+            <summary data-i18n="advancedTitle">고급·문제 해결</summary>
+            <div class="setting-row">
+              <div>
+                <strong data-i18n="reconnectTitle">페이지 연결 복구</strong>
+                <p data-i18n="reconnectBody">
+                  페이지 제어가 끊겼을 때 기존 세션에 다시 연결합니다.
+                </p>
+              </div>
+              <button class="button secondary" data-action="reconnect" data-i18n="reconnect">
+                연결 복구
+              </button>
+            </div>
             <div class="setting-row">
               <div>
                 <strong data-i18n="mcpAddress">로컬 MCP 주소</strong>
