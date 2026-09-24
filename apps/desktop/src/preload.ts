@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('bridge', {
   setup: (action: string, index?: number) => ipcRenderer.invoke('bridge:setup', action, index),
   surface: (surface: string) => ipcRenderer.invoke('bridge:surface', surface),
   language: (language: string) => ipcRenderer.invoke('bridge:language', language),
+  guide: (open: boolean) => ipcRenderer.invoke('bridge:guide', open),
   viewport: (bounds: unknown) => ipcRenderer.invoke('bridge:viewport', bounds),
   onSurface: (listener: (surface: string) => void) => {
     ipcRenderer.on('bridge:surface-changed', (_event, surface: string) => listener(surface));

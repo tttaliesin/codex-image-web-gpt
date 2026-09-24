@@ -240,6 +240,30 @@ export async function setupSelfTest(
     } finally {
       await clipboard.writeText(savedClipboard);
     }
+    // Finished setup leaves the workspace; only an update or old install comes back as a notice.
+    await click('#setup-guide [data-guide="close"]');
+    await until(
+      () => ui.evaluate<boolean>(`document.querySelector('#setup-guide').hidden`),
+      Boolean,
+      3000,
+    );
+    assert.equal(
+      JSON.parse(await readFile(path.join(profile, 'preferences.json'), 'utf8')).setup_guide,
+      false,
+    );
+    assert.equal(await ui.evaluate(`document.querySelector('#setup-notice').hidden`), true);
+    assert.deepEqual(
+      await ui.evaluate(`(() => { refreshing = true;
+        render({...latest, setup: {...latest.setup, update_available: true}});
+        const notice = document.querySelector('#setup-notice');
+        const result = [document.querySelector('#setup-guide').hidden, notice.hidden,
+          notice.querySelector('[data-setup="connect"]').hidden,
+          notice.querySelector('[data-setup="connect"]').textContent,
+          document.querySelector('#integration-setting').textContent];
+        refreshing = false; render(latest); return result; })()`),
+      [true, false, false, '앱 업데이트', '새 버전 설치 대기 중 · 앱 업데이트를 눌러 주세요.'],
+    );
+    pass('closed-setup-guide-persists-and-update-shows-as-workspace-notice');
     await click('.nav-item[data-surface="settings"]');
     await click('[data-setup="remove-input"]');
     await until(async () => setup.configuration.input_roots.length === 0, Boolean, 3000);
@@ -259,8 +283,18 @@ export async function setupSelfTest(
       .evaluate(`window.bridge.setup('unsupported').then(()=>false,()=>true)`)
       .then((value) => assert.equal(value, true));
     pass('setup-ipc-rejects-unknown-commands-and-remote-page-has-no-bridge');
-    await click('.nav-item[data-surface="workspace"]');
+    await click('#settings-panel [data-guide="open"]');
     await until(() => ui.evaluate<boolean>(`surface === 'workspace'`), Boolean, 3000);
+    await until(
+      () => ui.evaluate<boolean>(`!document.querySelector('#setup-guide').hidden`),
+      Boolean,
+      3000,
+    );
+    assert.equal(
+      JSON.parse(await readFile(path.join(profile, 'preferences.json'), 'utf8')).setup_guide,
+      true,
+    );
+    pass('settings-reopen-setup-guide-in-workspace');
     await ui.evaluate(`document.querySelector('#workspace-panel').scrollTop=0`);
     await ui.evaluate(
       `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,

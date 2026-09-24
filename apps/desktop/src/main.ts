@@ -39,6 +39,7 @@ import { handleDesktopCommand } from './ipc';
 import { loadPageDocument } from './page-navigation';
 import { observePage, pageStatus as observedPageStatus, type PageStatus } from './page-observer';
 import { language, loadLanguage, saveLanguage, t } from './i18n';
+import { readPreferences, savePreference } from './preferences';
 
 const root = path.resolve(__dirname, '../../../..');
 const argument = (name: string) => {
@@ -152,6 +153,9 @@ async function start() {
   await mkdir(profile, { recursive: true });
   // Tests pin Korean so their text assertions do not depend on the machine's locale.
   loadLanguage(profile, testing || app.getLocale().toLowerCase().startsWith('ko') ? 'ko' : 'en');
+  // null until the user closes or reopens the setup guide; the page then decides from history.
+  const savedGuide = readPreferences(profile).setup_guide;
+  let setupGuide = typeof savedGuide === 'boolean' ? savedGuide : null;
   if (mcpConfiguration) {
     setup = new DesktopSetup({
       ...context,
@@ -401,6 +405,12 @@ async function start() {
     else tray!.setContextMenu(baseTrayMenu());
     return { language: language() };
   });
+  handleDesktopCommand(window, 'bridge:guide', async (open: unknown) => {
+    if (typeof open !== 'boolean') throw Error('INPUT_INVALID');
+    await savePreference(profile, 'setup_guide', open);
+    setupGuide = open;
+    return { setup_guide: open };
+  });
   handleDesktopCommand(window, 'bridge:status', () => {
     return {
       phase,
@@ -427,6 +437,7 @@ async function start() {
         version: app.getVersion(),
       },
       setup: setup?.snapshot() ?? null,
+      setup_guide: setupGuide,
       request: request ? { id: request.id, input_count: request.inputs.length } : null,
     };
   });

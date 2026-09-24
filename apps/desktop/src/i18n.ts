@@ -1,6 +1,4 @@
-import path from 'node:path';
-import { readFileSync } from 'node:fs';
-import { durableJson } from '../../../packages/storage/src/files';
+import { readPreferences, savePreference } from './preferences';
 
 // Main-process text: tray menu and native dialogs. The page has its own copy in ui/i18n.js.
 const ko = {
@@ -86,16 +84,6 @@ let current: Language = 'ko';
 export const language = () => current;
 export const t = () => messages[current];
 
-// The choice lives with the profile so an update or reinstall keeps it.
-const preferencesFile = (profile: string) => path.join(profile, 'preferences.json');
-function readPreferences(profile: string): Record<string, unknown> {
-  try {
-    const value = JSON.parse(readFileSync(preferencesFile(profile), 'utf8'));
-    return value && typeof value === 'object' ? value : {};
-  } catch {
-    return {};
-  }
-}
 export function loadLanguage(profile: string, fallback: Language) {
   const saved = readPreferences(profile).language;
   current = isLanguage(saved) ? saved : fallback;
@@ -103,7 +91,7 @@ export function loadLanguage(profile: string, fallback: Language) {
 }
 export async function saveLanguage(profile: string, value: unknown) {
   if (!isLanguage(value)) throw Error('INPUT_INVALID');
-  await durableJson(preferencesFile(profile), { ...readPreferences(profile), language: value });
+  await savePreference(profile, 'language', value);
   current = value;
   return current;
 }
