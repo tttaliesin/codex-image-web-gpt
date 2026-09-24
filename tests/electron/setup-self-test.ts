@@ -318,6 +318,25 @@ export async function setupSelfTest(
       path.join(profile, 'readme-setup.png'),
       (await window.webContents.capturePage()).toPNG(),
     );
+    // The same screen for README.en.md; only the page switches, the saved choice stays.
+    assert.equal(
+      await ui.evaluate(`render({...latest, language: 'en'});
+        document.querySelector('#workspace-heading').textContent`),
+      'Workspace',
+    );
+    // The language buttons fade their background; capture after the transition ends.
+    await ui.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: 900, y: 220 });
+    await ui.evaluate(
+      `Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {})))`,
+    );
+    await ui.evaluate(
+      `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,
+    );
+    await writeFile(
+      path.join(profile, 'readme-setup-en.png'),
+      (await window.webContents.capturePage()).toPNG(),
+    );
+    await ui.evaluate(`render({...latest, language: 'ko'})`);
     window.setSize(980, 760);
     await ui.evaluate(
       `new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`,

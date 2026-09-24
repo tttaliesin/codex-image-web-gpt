@@ -23,12 +23,10 @@
 
 <p align="center"><strong>English</strong> · <a href="README.md">한국어</a></p>
 
-![Web Image Bridge workspace — desktop screen showing the Codex connection, the ChatGPT session, generation steps and recent jobs](assets/readme/workspace.png)
+![Web Image Bridge workspace — desktop screen showing the Codex connection, the ChatGPT session, generation steps and recent jobs](assets/readme/workspace-en.png)
 
 Ask Codex to generate or edit an image. The app runs the request in your own ChatGPT web session, downloads the **original file**, and saves it to your project folder.
 No separate image API key is needed. Codex writes the prompt and reviews the result; the app handles the browser, downloads and recovery.
-
-The screenshots show the Korean interface. Choose English in the setup guide or in **Settings → Language**.
 
 > [!NOTE]
 > This tool is not made or endorsed by OpenAI. It uses your own ChatGPT account and image generation limits, so check the ChatGPT terms of use and usage limits before you use it.
@@ -129,7 +127,7 @@ Unzip the file and **double-click `WebImageBridge.exe`** in the folder.
 
 ### 2. Finish the three setup steps
 
-![Setup guide — choose a language and folders, sign in to ChatGPT and connect Codex on one screen (local test screen)](assets/readme/setup.png)
+![Setup guide — choose a language and folders, sign in to ChatGPT and connect Codex on one screen (local test screen)](assets/readme/setup-en.png)
 
 Pick **한국어** or **English** at the top. You can change it later in **Settings → Language**.
 
@@ -178,7 +176,7 @@ Keep the character's appearance and placement as they are.
 
 **Follow progress in the workspace** — it shows each step (preparing the request, generating the image, saving the original) and recent jobs. If you pause new jobs, incoming requests stay in the queue and run in order when you resume.
 
-![Workspace with new jobs paused — two waiting image requests with resume and stop controls](assets/readme/queue.png)
+![Workspace with new jobs paused — two waiting image requests with resume and stop controls](assets/readme/queue-en.png)
 
 <sub>Screenshots show the real app with local test data. The sign-in state, folder paths and job details are test data too.</sub>
 

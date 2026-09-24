@@ -5,6 +5,9 @@ const reviewedImages = new Set([
   'assets/readme/workspace.png',
   'assets/readme/queue.png',
   'assets/readme/setup.png',
+  'assets/readme/workspace-en.png',
+  'assets/readme/queue-en.png',
+  'assets/readme/setup-en.png',
 ]);
 
 function pathIssues(name) {
