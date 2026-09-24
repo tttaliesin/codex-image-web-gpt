@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import type { BrowserWindow, Tray, WebContentsView } from 'electron';
 import type { BridgeService } from '../../packages/core/src/service';
 import { Cdp, until } from '../../packages/browser/src/cdp';
@@ -251,6 +251,57 @@ export async function operationsSelfTest(
   await ui.evaluate(`window.bridge.action('reconnect')`);
   await recovered();
   pass('repeated-renderer-crash-waits-for-manual-reconnect-which-reloads');
+  // Visible Hangul outside the language choices themselves means an untranslated string.
+  const hangulOutsideLanguageChoice = () =>
+    ui.evaluate<string[]>(`(() => {
+      const found = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const element = node.parentElement;
+        if (!element || element.closest('[hidden], [data-language], .language-choice-label')) continue;
+        if (!element.getClientRects().length) continue;
+        const value = node.textContent.trim();
+        if (/[\\uAC00-\\uD7A3]/.test(value) && value !== 'Language · 언어') found.push(value);
+      }
+      return found;
+    })()`);
+  const preferences = path.join(profile, 'preferences.json');
+  await ui.evaluate(`window.bridge.language('en').then(() => update())`);
+  await until(
+    () => ui.evaluate<string>(`document.documentElement.lang`),
+    (value) => value === 'en',
+    3000,
+  );
+  assert.deepEqual(JSON.parse(await readFile(preferences, 'utf8')), { language: 'en' });
+  for (const panel of ['workspace', 'settings']) {
+    await navigate(panel);
+    await ui.evaluate('update()');
+    assert.deepEqual(await hangulOutsideLanguageChoice(), [], `${panel} has untranslated text`);
+  }
+  assert.equal(
+    await ui.evaluate(`document.querySelector('#settings-heading').textContent`),
+    'Settings',
+  );
+  assert.equal(
+    await ui.evaluate(
+      `document.querySelector('[data-language="en"]').getAttribute('aria-pressed')`,
+    ),
+    'true',
+  );
+  await capture('settings-en.png');
+  await ui.evaluate(`window.bridge.language('ko').then(() => update())`);
+  await navigate('workspace');
+  assert.equal(
+    await ui.evaluate(`document.querySelector('#workspace-heading').textContent`),
+    '작업 공간',
+  );
+  assert.deepEqual(JSON.parse(await readFile(preferences, 'utf8')), { language: 'ko' });
+  assert.equal(
+    await ui.evaluate(`window.bridge.language('fr').then(() => false, () => true)`),
+    true,
+  );
+  assert.deepEqual(errors, []);
+  pass('language-switch-translates-every-visible-string-and-persists-choice');
   await durableJson(path.join(profile, 'self-test-operations.json'), {
     result: 'passed',
     checks: [

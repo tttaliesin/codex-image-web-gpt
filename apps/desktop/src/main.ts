@@ -38,6 +38,7 @@ import { DesktopSurface } from './desktop-surface';
 import { handleDesktopCommand } from './ipc';
 import { loadPageDocument } from './page-navigation';
 import { observePage, pageStatus as observedPageStatus, type PageStatus } from './page-observer';
+import { language, loadLanguage, saveLanguage, t } from './i18n';
 
 const root = path.resolve(__dirname, '../../../..');
 const argument = (name: string) => {
@@ -149,6 +150,8 @@ function status(value: string) {
 async function start() {
   await app.whenReady();
   await mkdir(profile, { recursive: true });
+  // Tests pin Korean so their text assertions do not depend on the machine's locale.
+  loadLanguage(profile, testing || app.getLocale().toLowerCase().startsWith('ko') ? 'ko' : 'en');
   if (mcpConfiguration) {
     setup = new DesktopSetup({
       ...context,
@@ -273,27 +276,29 @@ async function start() {
     .resize({ width: 20, height: 20 });
   tray = new Tray(icon);
   tray.setToolTip('Web Image Bridge');
-  tray.setContextMenu(
+  // Until job operations exist, the tray offers only window and quit controls.
+  const baseTrayMenu = () =>
     Menu.buildFromTemplate([
-      { label: '창 열기', click: show },
-      { label: '창 숨기기', click: () => window!.hide() },
+      { label: t().openWindow, click: show },
+      { label: t().hideWindow, click: () => window!.hide() },
       { type: 'separator' },
       {
-        label: '앱 종료',
+        label: t().quitApp,
         click: () => {
           app.quit();
         },
       },
-    ]),
-  );
+    ]);
+  tray.setContextMenu(baseTrayMenu());
   tray.on('double-click', show);
   let traySignature = '';
   refreshTray = () => {
     if (!operations) return;
     const snapshot = operations.snapshot();
-    const label = `${phase} · 대기 ${snapshot.waiting_count}건${snapshot.job?.requires_action ? ' · 확인 필요' : ''}${snapshot.paused ? ' · 새 작업 정지' : ''}${snapshot.draining ? ' · 완료 후 종료' : ''}`;
-    if (label === traySignature) return;
-    traySignature = label;
+    const text = t();
+    const label = `${text.trayStatus(phase, snapshot.waiting_count)}${snapshot.job?.requires_action ? text.trayAttention : ''}${snapshot.paused ? text.trayPaused : ''}${snapshot.draining ? text.trayDraining : ''}`;
+    if (`${language()}|${label}` === traySignature) return;
+    traySignature = `${language()}|${label}`;
     const invoke = (action: string) => {
       void operations!.command(action).catch((error) => status(safeError(error)));
     };
@@ -301,20 +306,20 @@ async function start() {
     tray!.setContextMenu(
       Menu.buildFromTemplate([
         { label, enabled: false },
-        { label: '창 열기', click: show },
-        { label: '창 숨기기', click: () => window!.hide() },
+        { label: text.openWindow, click: show },
+        { label: text.hideWindow, click: () => window!.hide() },
         { type: 'separator' },
         {
-          label: snapshot.paused ? '새 작업 시작 재개' : '새 작업 시작 일시정지',
+          label: snapshot.paused ? text.resumeQueue : text.pauseQueue,
           enabled: !snapshot.draining,
           click: () => invoke(snapshot.paused ? 'resume-queue' : 'pause-queue'),
         },
         {
-          label: '현재 작업 완료 후 종료',
+          label: text.quitAfter,
           enabled: !snapshot.draining,
           click: () => invoke('quit-after'),
         },
-        { label: '기록 저장 후 즉시 종료', click: () => invoke('quit-now') },
+        { label: text.quitNow, click: () => invoke('quit-now') },
       ]),
     );
   };
@@ -348,7 +353,7 @@ async function start() {
   let lastCrash = 0;
   view.webContents.on('render-process-gone', (_event, details) => {
     if (quitting || details.reason === 'clean-exit') return;
-    // Reload automatically once; a repeated crash waits for 연결 복구 instead of looping.
+    // Reload automatically once; a repeated crash waits for Reconnect instead of looping.
     const repeated = Date.now() - lastCrash < 5 * 60_000;
     lastCrash = Date.now();
     status('ADAPTER_UNAVAILABLE');
@@ -389,9 +394,17 @@ async function start() {
         status(phase);
       });
   };
+  handleDesktopCommand(window, 'bridge:language', async (value: unknown) => {
+    await saveLanguage(profile, value);
+    // The page redraws itself; the tray and dialogs read the new language on next use.
+    if (operations) refreshTray?.();
+    else tray!.setContextMenu(baseTrayMenu());
+    return { language: language() };
+  });
   handleDesktopCommand(window, 'bridge:status', () => {
     return {
       phase,
+      language: language(),
       surface: desktop!.selected,
       page_status: pageStatus,
       mcp_enabled: !!mcp,
@@ -436,7 +449,7 @@ async function start() {
       throw Error('INPUT_INVALID');
     if (action === 'pick-input' || action === 'pick-output') {
       const picked = await dialog.showOpenDialog(window!, {
-        title: action === 'pick-input' ? '참고 이미지를 가져올 폴더' : '이미지를 저장할 폴더',
+        title: action === 'pick-input' ? t().pickInputTitle : t().pickOutputTitle,
         properties: [
           'openDirectory',
           'createDirectory',
@@ -467,9 +480,7 @@ async function start() {
     if (action === 'copy-example') {
       const output = configuration!.export_roots[0];
       if (!output) throw Error('OUTPUT_FOLDER_REQUIRED');
-      await clipboard.writeText(
-        `Web Image Bridge로 흰 배경 위의 작은 도자기 화병을 그려줘. 결과 원본을 ${output} 폴더에 저장해줘.`,
-      );
+      await clipboard.writeText(t().firstRequest(output));
       return { copied: true };
     }
     if (action === 'connect' || action === 'replace-skill') {
@@ -481,12 +492,12 @@ async function start() {
         // The user's own files move only after they see exactly which folder it is.
         const { response } = await dialog.showMessageBox(window!, {
           type: 'warning',
-          buttons: ['백업 후 연결', '취소'],
+          buttons: [t().replaceSkillConfirm, t().cancel],
           defaultId: 1,
           cancelId: 1,
-          title: '기존 imagegen 스킬 백업',
-          message: '기존 imagegen 스킬을 백업하고 Web Image Bridge 스킬로 연결할까요?',
-          detail: `${conflict}\n\n이 폴더는 앱 설치 폴더의 backups로 옮겨지고, 연결을 해제하면 원래 위치로 되돌아갑니다.`,
+          title: t().replaceSkillTitle,
+          message: t().replaceSkillMessage,
+          detail: t().replaceSkillDetail(conflict),
         });
         if (response !== 0) return { canceled: true };
       }
@@ -499,12 +510,12 @@ async function start() {
       if (!copies.length) throw Error('INPUT_INVALID');
       const { response } = await dialog.showMessageBox(window!, {
         type: 'warning',
-        buttons: ['이름 바꾸기', '취소'],
+        buttons: [t().retireShadowConfirm, t().cancel],
         defaultId: 1,
         cancelId: 1,
-        title: 'Codex의 이전 설치본 정리',
-        message: 'Codex 앱 전용 저장소에 남은 이전 설치본의 이름을 바꿀까요?',
-        detail: `${copies.join('\n')}\n\n지우지 않고 이름만 바꿉니다. 이후 Codex에서 새 대화를 시작하면 현재 설치본으로 연결됩니다.`,
+        title: t().retireShadowTitle,
+        message: t().retireShadowMessage,
+        detail: t().retireShadowDetail(copies.join('\n')),
       });
       if (response !== 0) return { canceled: true };
       const result = await setup.retireShadowCopies();
@@ -556,13 +567,12 @@ async function start() {
           if (action === 'release-remote') {
             const { response } = await dialog.showMessageBox(window!, {
               type: 'warning',
-              buttons: ['잠금 해제', '취소'],
+              buttons: [t().releaseRemoteConfirm, t().cancel],
               defaultId: 1,
               cancelId: 1,
-              title: '웹 생성 종료 확인',
-              message: '중단한 작업의 웹 생성이 끝났는지 확인했나요?',
-              detail:
-                'ChatGPT 페이지에서 이 요청이 전송되지 않았거나 생성이 끝난 것을 직접 확인한 경우에만 해제하세요. 해제하면 대기 중인 다음 작업이 시작됩니다.',
+              title: t().releaseRemoteTitle,
+              message: t().releaseRemoteMessage,
+              detail: t().releaseRemoteDetail,
             });
             if (response !== 0) return;
           }
@@ -582,7 +592,7 @@ async function start() {
         if (action === 'load') {
           const picked = await dialog.showOpenDialog(window!, {
             properties: ['openFile'],
-            filters: [{ name: '승인된 M0 요청', extensions: ['json'] }],
+            filters: [{ name: t().requestFilter, extensions: ['json'] }],
           });
           if (!picked.canceled) {
             const value = await readJson(picked.filePaths[0]!);
@@ -770,9 +780,6 @@ else if (ownsLock)
     console.error(safeError(error));
     // Without a window the app would otherwise vanish; tests only need the exit code.
     if (!testing)
-      dialog.showErrorBox(
-        'Web Image Bridge를 시작하지 못했습니다',
-        `오류 코드: ${safeError(error)}\n앱을 다시 실행해 주세요. 계속 실패하면 이 오류 코드를 알려 주세요.`,
-      );
+      dialog.showErrorBox(t().startFailedTitle, t().startFailedDetail(safeError(error)));
     app.exit(1);
   });

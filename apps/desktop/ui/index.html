@@ -55,23 +55,23 @@
       </symbol>
     </svg>
     <div class="titlebar"><span>Web Image Bridge</span></div>
-    <aside class="sidebar" aria-label="앱 탐색">
+    <aside class="sidebar" aria-label="앱 탐색" data-i18n-aria="navAria">
       <div class="brand">
         <div class="brand-mark">
           <svg><use href="#i-image" /></svg>
         </div>
-        <div><strong>Web Image Bridge</strong><span>이미지 작업실</span></div>
+        <div><strong>Web Image Bridge</strong><span data-i18n="brandSub">이미지 작업실</span></div>
       </div>
       <nav class="navigation">
-        <span class="nav-label">워크스페이스</span>
+        <span class="nav-label" data-i18n="navSection">워크스페이스</span>
         <button class="nav-item active" data-surface="workspace" aria-current="page">
-          <svg><use href="#i-grid" /></svg><span>작업 공간</span>
+          <svg><use href="#i-grid" /></svg><span data-i18n="navWorkspace">작업 공간</span>
         </button>
         <button class="nav-item" data-surface="browser">
           <svg><use href="#i-chat" /></svg><span>ChatGPT</span><i id="browser-dot" class="dot"></i>
         </button>
         <button class="nav-item" data-surface="settings">
-          <svg><use href="#i-settings" /></svg><span>설정</span>
+          <svg><use href="#i-settings" /></svg><span data-i18n="navSettings">설정</span>
         </button>
       </nav>
       <div class="sidebar-bottom">
@@ -83,9 +83,11 @@
           </div>
         </div>
         <button class="nav-item" data-action="hide">
-          <svg><use href="#i-hide" /></svg><span>트레이로 숨기기</span>
+          <svg><use href="#i-hide" /></svg><span data-i18n="hideToTray">트레이로 숨기기</span>
         </button>
-        <div class="sidebar-footnote">창을 닫아도 작업은 계속됩니다.</div>
+        <div class="sidebar-footnote" data-i18n="closeKeepsRunning">
+          창을 닫아도 작업은 계속됩니다.
+        </div>
       </div>
     </aside>
     <main class="workspace">
@@ -94,8 +96,10 @@
         <div class="bar-actions">
           <span id="status" class="status-pill" role="status">시작 중</span
           ><button class="button secondary" data-action="takeover">
-            <svg><use href="#i-hand" /></svg>직접 조작</button
-          ><button class="button primary" data-action="release" hidden>자동화에 반환</button>
+            <svg><use href="#i-hand" /></svg><span data-i18n="takeover">직접 조작</span></button
+          ><button class="button primary" data-action="release" data-i18n="release" hidden>
+            자동화에 반환
+          </button>
         </div>
       </header>
       <section id="workspace-panel" class="panel scroll-panel" aria-labelledby="workspace-heading">
@@ -103,71 +107,109 @@
           <div class="page-heading">
             <div>
               <p class="eyebrow">YOUR IMAGE WORKSPACE</p>
-              <h1 id="workspace-heading">작업 공간</h1>
-              <p>Codex에서 요청하고, 여기서 진행 상황을 확인하세요.</p>
+              <h1 id="workspace-heading" data-i18n="workspaceTitle">작업 공간</h1>
+              <p data-i18n="workspaceIntro">Codex에서 요청하고, 여기서 진행 상황을 확인하세요.</p>
             </div>
             <button class="button secondary" data-action="open-results">
-              <svg><use href="#i-folder" /></svg>결과 폴더
+              <svg><use href="#i-folder" /></svg><span data-i18n="openResults">결과 폴더</span>
             </button>
           </div>
           <details id="setup-guide" class="setup-guide" open hidden>
             <summary>
               <span
                 ><span class="eyebrow">GET STARTED</span
-                ><strong>이미지 작업실 시작하기</strong></span
+                ><strong data-i18n="setupTitle">이미지 작업실 시작하기</strong></span
               ><span id="setup-count" class="status-pill">0 / 3</span>
             </summary>
-            <p class="setup-intro">
+            <p class="setup-intro" data-i18n="setupIntro">
               폴더를 고르고, 로그인하고, Codex에 연결하세요. 여기서 모두 끝낼 수 있어요.
             </p>
+            <div class="setup-language">
+              <span data-i18n="languageLabel">언어</span>
+              <div class="language-switch" role="group" aria-label="Language">
+                <button class="button secondary" data-language="ko" lang="ko" aria-pressed="true">
+                  한국어</button
+                ><button class="button secondary" data-language="en" lang="en" aria-pressed="false">
+                  English
+                </button>
+              </div>
+            </div>
             <div class="setup-step" id="setup-folders">
               <span class="step-number">1</span>
               <div class="setup-copy">
-                <h2>이미지 폴더 선택</h2>
+                <h2 data-i18n="setupFoldersTitle">이미지 폴더 선택</h2>
                 <p id="setup-folders-hint">
                   결과를 저장할 폴더를 골라주세요. 참고 이미지 폴더는 나중에 추가해도 돼요.
                 </p>
               </div>
               <div class="setting-actions">
-                <button class="button secondary" data-setup="pick-input">입력 폴더 추가</button
-                ><button class="button primary" data-setup="pick-output">저장 폴더 선택</button>
+                <button class="button secondary" data-setup="pick-input" data-i18n="addInputFolder">
+                  입력 폴더 추가</button
+                ><button
+                  class="button primary"
+                  data-setup="pick-output"
+                  data-i18n="chooseOutputFolder"
+                >
+                  저장 폴더 선택
+                </button>
               </div>
             </div>
             <div class="setup-step" id="setup-login">
               <span class="step-number">2</span>
               <div class="setup-copy">
-                <h2>ChatGPT 로그인</h2>
+                <h2 data-i18n="setupLoginTitle">ChatGPT 로그인</h2>
                 <p id="setup-login-hint">이 앱의 ChatGPT 페이지에서 한 번 로그인하세요.</p>
               </div>
-              <button class="button secondary" data-surface="browser">로그인 페이지 열기</button>
+              <button class="button secondary" data-surface="browser" data-i18n="openLoginPage">
+                로그인 페이지 열기
+              </button>
             </div>
             <div class="setup-step" id="setup-codex">
               <span class="step-number">3</span>
               <div class="setup-copy">
-                <h2>Codex 연결</h2>
+                <h2 data-i18n="setupCodexTitle">Codex 연결</h2>
                 <p id="setup-codex-hint">
                   연결 설정과 이미지 스킬을 설치하고 원래 설정을 백업합니다.
                 </p>
               </div>
               <div class="setting-actions">
                 <button class="button primary" data-setup="connect">Codex에 연결</button
-                ><button class="button primary" data-setup="replace-skill" hidden>
+                ><button
+                  class="button primary"
+                  data-setup="replace-skill"
+                  data-i18n="replaceSkill"
+                  hidden
+                >
                   기존 스킬 백업 후 연결</button
-                ><button class="button secondary" data-setup="check" hidden>연결 확인</button
-                ><button class="button primary" data-setup="retire-shadow" hidden>
+                ><button
+                  class="button secondary"
+                  data-setup="check"
+                  data-i18n="checkConnection"
+                  hidden
+                >
+                  연결 확인</button
+                ><button
+                  class="button primary"
+                  data-setup="retire-shadow"
+                  data-i18n="retireShadow"
+                  hidden
+                >
                   이전 설치본 정리
                 </button>
               </div>
             </div>
             <div id="setup-ready" class="setup-ready" hidden>
-              <span>준비됐어요. Codex를 한 번 다시 시작하고 첫 이미지를 요청하세요.</span
-              ><button class="button primary" data-setup="copy-example">첫 요청 복사</button>
+              <span data-i18n="setupReady"
+                >준비됐어요. Codex를 한 번 다시 시작하고 첫 이미지를 요청하세요.</span
+              ><button class="button primary" data-setup="copy-example" data-i18n="copyExample">
+                첫 요청 복사
+              </button>
             </div>
             <p id="setup-feedback" class="setup-feedback" role="status" aria-live="polite"></p>
           </details>
           <section class="current-work" aria-labelledby="current-title">
             <div class="work-heading">
-              <span class="section-label">현재 작업</span
+              <span class="section-label" data-i18n="currentWork">현재 작업</span
               ><span id="work-state" class="subtle-label">대기 중</span>
             </div>
             <div class="work-body">
@@ -179,49 +221,100 @@
                 <p id="notice">연결 상태를 확인하고 있습니다.</p>
               </div>
             </div>
-            <ol class="progress-track" aria-label="작업 진행 단계">
-              <li data-step="prepare"><span>1</span>요청 준비</li>
-              <li data-step="generate"><span>2</span>이미지 생성</li>
-              <li data-step="download"><span>3</span>원본 저장</li>
+            <ol class="progress-track" aria-label="작업 진행 단계" data-i18n-aria="progressAria">
+              <li data-step="prepare">
+                <span>1</span><span data-i18n="stepPrepare">요청 준비</span>
+              </li>
+              <li data-step="generate">
+                <span>2</span><span data-i18n="stepGenerate">이미지 생성</span>
+              </li>
+              <li data-step="download">
+                <span>3</span><span data-i18n="stepDownload">원본 저장</span>
+              </li>
             </ol>
             <div id="operations" class="work-actions" hidden>
               <div class="queue-controls">
-                <button class="button quiet" data-action="pause-queue">새 작업 일시정지</button
-                ><button class="button quiet" data-action="resume-queue" hidden>새 작업 재개</button
+                <button class="button quiet" data-action="pause-queue" data-i18n="pauseQueue">
+                  새 작업 일시정지</button
+                ><button
+                  class="button quiet"
+                  data-action="resume-queue"
+                  data-i18n="resumeQueue"
+                  hidden
+                >
+                  새 작업 재개</button
                 ><span id="queue" class="subtle-label" aria-live="polite"></span>
               </div>
               <div class="task-actions">
-                <button class="button secondary" data-action="reconcile" hidden>
+                <button
+                  class="button secondary"
+                  data-action="reconcile"
+                  data-i18n="reconcile"
+                  hidden
+                >
                   기존 결과 확인</button
-                ><button class="button secondary" data-action="release-remote" hidden>
+                ><button
+                  class="button secondary"
+                  data-action="release-remote"
+                  data-i18n="releaseRemote"
+                  hidden
+                >
                   웹 생성 종료 확인</button
-                ><button class="button secondary" data-action="resume-job" hidden>작업 재개</button
-                ><button class="button danger-quiet" data-action="cancel" hidden>작업 중단</button
+                ><button
+                  class="button secondary"
+                  data-action="resume-job"
+                  data-i18n="resumeJob"
+                  hidden
+                >
+                  작업 재개</button
+                ><button
+                  class="button danger-quiet"
+                  data-action="cancel"
+                  data-i18n="cancelJob"
+                  hidden
+                >
+                  작업 중단</button
                 ><button class="button primary" data-surface="browser">
-                  ChatGPT 열기<svg><use href="#i-arrow" /></svg>
+                  <span data-i18n="openChatGPT">ChatGPT 열기</span
+                  ><svg><use href="#i-arrow" /></svg>
                 </button>
               </div>
             </div>
           </section>
           <div class="connection-strip">
-            <div><span>Codex 연결</span><strong id="mcp-summary">확인 중</strong></div>
-            <div><span>ChatGPT 세션</span><strong id="session-summary">확인 중</strong></div>
-            <div><span>대기 중인 작업</span><strong id="waiting-summary">—</strong></div>
+            <div>
+              <span data-i18n="stripCodex">Codex 연결</span
+              ><strong id="mcp-summary">확인 중</strong>
+            </div>
+            <div>
+              <span data-i18n="stripSession">ChatGPT 세션</span
+              ><strong id="session-summary">확인 중</strong>
+            </div>
+            <div>
+              <span data-i18n="stripWaiting">대기 중인 작업</span
+              ><strong id="waiting-summary">—</strong>
+            </div>
           </div>
           <section class="recent-work" aria-labelledby="recent-heading">
             <div class="section-heading">
-              <h2 id="recent-heading">최근 작업</h2>
+              <h2 id="recent-heading" data-i18n="recentTitle">최근 작업</h2>
               <span id="history-count" class="subtle-label"></span>
             </div>
             <div id="job-list"></div>
             <div id="empty-history" class="empty-history">
-              <svg><use href="#i-image" /></svg><strong>첫 이미지를 만들어보세요</strong>
-              <p>Codex에 이미지 생성을 요청하면 작업이 여기에 표시됩니다.</p>
-              <span>예시 요청 · “Web Image Bridge로 두 이미지를 합쳐줘.”</span>
+              <svg><use href="#i-image" /></svg
+              ><strong data-i18n="emptyTitle">첫 이미지를 만들어보세요</strong>
+              <p data-i18n="emptyBody">Codex에 이미지 생성을 요청하면 작업이 여기에 표시됩니다.</p>
+              <span data-i18n="emptyExample"
+                >예시 요청 · “Web Image Bridge로 두 이미지를 합쳐줘.”</span
+              >
             </div>
           </section>
           <footer class="workspace-note">
-            <svg><use href="#i-lock" /></svg>로그인 세션과 다운로드한 원본은 이 컴퓨터에 보관됩니다.
+            <svg><use href="#i-lock" /></svg
+            ><span data-i18n="privacyNote"
+              >로그인 세션과 다운로드한 원본은 이 컴퓨터에 보관됩니다.</span
+            >
           </footer>
         </div>
       </section>
@@ -230,6 +323,7 @@
         class="panel browser-panel"
         hidden
         aria-label="ChatGPT 작업 페이지"
+        data-i18n-aria="browserAria"
       >
         <div class="browser-toolbar">
           <div class="browser-address">
@@ -261,12 +355,30 @@
           <div class="page-heading">
             <div>
               <p class="eyebrow">PREFERENCES</p>
-              <h1 id="settings-heading">설정</h1>
-              <p>Codex 연결과 작업실 운영을 관리하세요.</p>
+              <h1 id="settings-heading" data-i18n="settingsTitle">설정</h1>
+              <p data-i18n="settingsIntro">Codex 연결과 작업실 운영을 관리하세요.</p>
             </div>
           </div>
           <section class="settings-section">
-            <h2>연결</h2>
+            <h2 data-i18n="sectionLanguage">언어</h2>
+            <div class="setting-row">
+              <div>
+                <strong>Language · 언어</strong>
+                <p data-i18n="languageBody">
+                  앱 화면, 트레이 메뉴와 확인 창에 사용할 언어를 고르세요.
+                </p>
+              </div>
+              <div class="language-switch" role="group" aria-label="Language">
+                <button class="button secondary" data-language="ko" lang="ko" aria-pressed="true">
+                  한국어</button
+                ><button class="button secondary" data-language="en" lang="en" aria-pressed="false">
+                  English
+                </button>
+              </div>
+            </div>
+          </section>
+          <section class="settings-section">
+            <h2 data-i18n="sectionConnection">연결</h2>
             <div class="setting-row">
               <div>
                 <strong>Codex</strong>
@@ -274,12 +386,28 @@
               </div>
               <div class="setting-actions">
                 <button class="button secondary" data-setup="connect">Codex에 연결</button
-                ><button class="button secondary" data-setup="replace-skill" hidden>
+                ><button
+                  class="button secondary"
+                  data-setup="replace-skill"
+                  data-i18n="replaceSkill"
+                  hidden
+                >
                   기존 스킬 백업 후 연결</button
-                ><button class="button secondary" data-setup="check">연결 확인</button
-                ><button class="button secondary" data-setup="retire-shadow" hidden>
+                ><button class="button secondary" data-setup="check" data-i18n="checkConnection">
+                  연결 확인</button
+                ><button
+                  class="button secondary"
+                  data-setup="retire-shadow"
+                  data-i18n="retireShadow"
+                  hidden
+                >
                   이전 설치본 정리</button
-                ><button class="button danger-quiet" data-setup="disconnect" hidden>
+                ><button
+                  class="button danger-quiet"
+                  data-setup="disconnect"
+                  data-i18n="disconnect"
+                  hidden
+                >
                   연결 해제
                 </button>
               </div>
@@ -289,78 +417,99 @@
                 <strong>ChatGPT</strong>
                 <p id="login-setting">로그인 상태 확인 중</p>
               </div>
-              <button class="button secondary" data-surface="browser">페이지 열기</button>
+              <button class="button secondary" data-surface="browser" data-i18n="openPage">
+                페이지 열기
+              </button>
             </div>
             <div class="setting-row">
               <div>
-                <strong>페이지 연결 복구</strong>
-                <p>페이지 제어가 끊겼을 때 기존 세션에 다시 연결합니다.</p>
+                <strong data-i18n="reconnectTitle">페이지 연결 복구</strong>
+                <p data-i18n="reconnectBody">
+                  페이지 제어가 끊겼을 때 기존 세션에 다시 연결합니다.
+                </p>
               </div>
-              <button class="button secondary" data-action="reconnect">연결 복구</button>
+              <button class="button secondary" data-action="reconnect" data-i18n="reconnect">
+                연결 복구
+              </button>
             </div>
           </section>
           <section class="settings-section">
-            <h2>파일 보관</h2>
+            <h2 data-i18n="sectionFiles">파일 보관</h2>
             <div class="setting-row">
               <div>
-                <strong>결과 폴더</strong>
+                <strong data-i18n="resultFolder">결과 폴더</strong>
                 <p id="export-location" class="path-value">설정되지 않음</p>
               </div>
-              <button class="button secondary" data-setup="pick-output">폴더 변경</button>
+              <button class="button secondary" data-setup="pick-output" data-i18n="changeFolder">
+                폴더 변경
+              </button>
             </div>
             <div class="setting-row">
               <div>
-                <strong>허용된 입력 폴더</strong>
+                <strong data-i18n="allowedInputs">허용된 입력 폴더</strong>
                 <p id="input-location" class="path-value">설정되지 않음</p>
                 <div id="input-folders" class="folder-list"></div>
               </div>
-              <button class="button secondary" data-setup="pick-input">폴더 추가</button>
+              <button class="button secondary" data-setup="pick-input" data-i18n="addFolder">
+                폴더 추가
+              </button>
             </div>
             <div class="setting-row">
               <div>
-                <strong>로그인과 작업 기록</strong>
+                <strong data-i18n="profileTitle">로그인과 작업 기록</strong>
                 <p id="profile-location" class="path-value">이 컴퓨터에 보관</p>
               </div>
             </div>
           </section>
           <details class="advanced-settings">
-            <summary>고급 연결 정보</summary>
+            <summary data-i18n="advancedTitle">고급 연결 정보</summary>
             <div class="setting-row">
               <div>
-                <strong>로컬 MCP 주소</strong>
+                <strong data-i18n="mcpAddress">로컬 MCP 주소</strong>
                 <p id="mcp-endpoint">연결 확인 중</p>
               </div>
-              <button class="button secondary" data-action="copy-mcp-token">인증 토큰 복사</button>
+              <button class="button secondary" data-action="copy-mcp-token" data-i18n="copyToken">
+                인증 토큰 복사
+              </button>
             </div>
           </details>
           <section id="legacy-controls" class="settings-section" hidden>
-            <h2>요청 파일</h2>
+            <h2 data-i18n="legacyTitle">요청 파일</h2>
             <div class="setting-row">
               <div>
-                <strong>준비된 요청 실행</strong>
+                <strong data-i18n="legacyRun">준비된 요청 실행</strong>
                 <p id="request-description">승인된 요청 JSON 파일을 선택하세요.</p>
               </div>
               <div class="setting-actions">
-                <button class="button secondary" data-action="load">파일 열기</button
-                ><button class="button primary" data-action="run">요청 실행</button>
+                <button class="button secondary" data-action="load" data-i18n="openFile">
+                  파일 열기</button
+                ><button class="button primary" data-action="run" data-i18n="runRequest">
+                  요청 실행
+                </button>
               </div>
             </div>
           </section>
           <section class="settings-section">
-            <h2>앱 종료</h2>
+            <h2 data-i18n="sectionQuit">앱 종료</h2>
             <div class="setting-row">
               <div>
-                <strong>현재 작업 완료 후 종료</strong>
-                <p>새 요청 접수를 닫고, 진행 중인 작업이 끝나면 종료합니다.</p>
+                <strong data-i18n="quitAfterTitle">현재 작업 완료 후 종료</strong>
+                <p data-i18n="quitAfterBody">
+                  새 요청 접수를 닫고, 진행 중인 작업이 끝나면 종료합니다.
+                </p>
               </div>
-              <button class="button secondary" data-action="quit-after">완료 후 종료</button>
+              <button class="button secondary" data-action="quit-after" data-i18n="quitAfter">
+                완료 후 종료
+              </button>
             </div>
             <div class="setting-row">
               <div>
-                <strong>기록을 저장하고 종료</strong>
-                <p>웹에서 이미 시작된 생성은 계속될 수 있습니다.</p>
+                <strong data-i18n="quitNowTitle">기록을 저장하고 종료</strong>
+                <p data-i18n="quitNowBody">웹에서 이미 시작된 생성은 계속될 수 있습니다.</p>
               </div>
-              <button class="button danger-quiet" data-action="quit-now">앱 종료</button>
+              <button class="button danger-quiet" data-action="quit-now" data-i18n="quitNow">
+                앱 종료
+              </button>
             </div>
           </section>
           <footer class="workspace-note">Web Image Bridge <span id="app-version"></span></footer>
@@ -369,6 +518,7 @@
       <div id="action-error" class="toast error-toast" role="alert" hidden></div>
       <div id="action-message" class="toast" role="status" hidden></div>
     </main>
+    <script src="i18n.js"></script>
     <script src="ui.js"></script>
   </body>
 </html>
