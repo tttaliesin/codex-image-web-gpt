@@ -12,6 +12,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2011%20x64-0078D4" alt="Windows 11 x64">
   <img src="https://img.shields.io/badge/MCP-local%20HTTP-6f42c1" alt="Local MCP">
   <img src="https://img.shields.io/badge/UI-%ED%95%9C%EA%B5%AD%EC%96%B4%20%C2%B7%20English-555" alt="Korean · English">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="MIT license"></a>
 </p>
 
 <p align="center">
@@ -342,4 +343,6 @@ The [MCP contract](packages/contracts/schema.json) is the single source for runt
 
 Please report bugs and ideas as [issues](https://github.com/tttaliesin/codex-image-web-gpt/issues). If you send code, make sure `run check`, `run test:integration` and `run check:public` pass.
 
-No public license has been chosen for the project source yet.
+The project source is released under the [MIT License](LICENSE).
+
+Third-party components in the release package, such as Electron and sharp (libvips), keep their own licenses. They are listed with their source locations in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Some libvips libraries are LGPL-3.0; the app uses them through dynamic linking as separate, replaceable DLLs.

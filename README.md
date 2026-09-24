@@ -12,6 +12,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2011%20x64-0078D4" alt="Windows 11 x64">
   <img src="https://img.shields.io/badge/MCP-local%20HTTP-6f42c1" alt="로컬 MCP">
   <img src="https://img.shields.io/badge/UI-%ED%95%9C%EA%B5%AD%EC%96%B4%20%C2%B7%20English-555" alt="한국어 · English">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-yellow" alt="MIT 라이선스"></a>
 </p>
 
 <p align="center">
@@ -342,4 +343,6 @@ Windows 패키징은 Windows에 포함된 .NET Framework 4.x 컴파일러(`%WIND
 
 버그 제보와 제안은 [이슈](https://github.com/tttaliesin/codex-image-web-gpt/issues)로 남겨 주세요. 코드를 보낼 때는 `run check`, `run test:integration`, `run check:public`이 통과하는지 확인해 주세요.
 
-프로젝트 소스의 공개 라이선스는 아직 정하지 않았습니다.
+프로젝트 소스는 [MIT 라이선스](LICENSE)로 공개합니다.
+
+배포 패키지에 들어 있는 Electron, sharp(libvips) 같은 서드파티 구성 요소는 각자의 라이선스를 따릅니다. 목록과 소스 위치는 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)에 정리했습니다. libvips 일부 라이브러리는 LGPL-3.0이며, 앱은 이를 교체 가능한 별도 DLL로 동적 링크해 사용합니다.

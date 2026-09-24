@@ -87,6 +87,9 @@ async function main() {
       path.join(root, 'scripts/windows/setup.ps1'),
       path.join(destination, 'setup.ps1'),
     );
+    // The project license and third-party notices also sit where someone unzipping will look.
+    for (const name of ['LICENSE', 'THIRD_PARTY_NOTICES.md'])
+      await fs.copyFile(path.join(root, name), path.join(destination, name));
     // Windows supplies the .NET Framework compiler; the GUI entry point needs no shell.
     const png = await require('sharp')(path.join(root, 'apps/desktop/ui/icon.png'))
       .resize(256, 256)
