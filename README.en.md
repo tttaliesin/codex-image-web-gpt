@@ -23,7 +23,7 @@
 
 <p align="center"><strong>English</strong> · <a href="README.md">한국어</a></p>
 
-![Web Image Bridge workspace — desktop screen showing request status, the ChatGPT connection, generation steps and recent jobs](assets/readme/workspace.png)
+![Web Image Bridge workspace — desktop screen showing the Codex connection, the ChatGPT session, generation steps and recent jobs](assets/readme/workspace.png)
 
 Ask Codex to generate or edit an image. The app runs the request in your own ChatGPT web session, downloads the **original file**, and saves it to your project folder.
 No separate image API key is needed. Codex writes the prompt and reviews the result; the app handles the browser, downloads and recovery.

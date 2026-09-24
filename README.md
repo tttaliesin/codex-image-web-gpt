@@ -23,7 +23,7 @@
 
 <p align="center"><a href="README.en.md">English</a> · <strong>한국어</strong></p>
 
-![Web Image Bridge 작업 공간 — 요청 수신 상태, ChatGPT 연결, 생성 단계와 최근 작업을 보여 주는 데스크톱 화면](assets/readme/workspace.png)
+![Web Image Bridge 작업 공간 — Codex 연결 상태, ChatGPT 세션, 생성 단계와 최근 작업을 보여 주는 데스크톱 화면](assets/readme/workspace.png)
 
 Codex에 이미지 생성·편집을 요청하면 앱이 사용자의 ChatGPT 웹 세션에서 실행하고, 다운로드한 **원본 파일**을 프로젝트 폴더에 저장합니다.
 별도 이미지 API 키는 필요 없습니다. 프롬프트 작성과 결과 검수는 Codex가, 브라우저 조작·다운로드·복구는 앱이 맡습니다.
