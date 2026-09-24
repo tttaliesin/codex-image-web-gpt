@@ -35,6 +35,18 @@ export async function operationsSelfTest(
     );
     await writeFile(path.join(profile, name), (await window.webContents.capturePage()).toPNG());
   };
+  // Public README screenshots show a registered Codex connection; the fixture never registers one.
+  const readmeCapture = async (name: string) => {
+    await until(
+      () =>
+        ui.evaluate<boolean>(`!refreshing && (refreshing = true, render({...latest, setup_guide: false,
+          setup: latest.setup && {...latest.setup, registered: true, checked: true}}), true)`),
+      Boolean,
+      3000,
+    );
+    await capture(name);
+    await ui.evaluate(`refreshing = false; update()`);
+  };
   await until(
     () => ui.evaluate<boolean>(`!document.querySelector('#operations').hidden`),
     Boolean,
@@ -142,6 +154,7 @@ export async function operationsSelfTest(
   window.showInactive();
   await navigate('workspace');
   pass('dashboard-hidden-window-keeps-web-page-rendered');
+  await readmeCapture('readme-workspace.png');
   await ui.click('[data-action="pause-queue"]');
   await until(async () => service.engine.paused, Boolean, 3000);
   for (let i = 0; i < 2; i++)
@@ -182,6 +195,7 @@ export async function operationsSelfTest(
   );
   assert.equal(await ui.evaluate(`document.querySelectorAll('.job-row').length`), 2);
   await capture('queue.png');
+  await readmeCapture('readme-queue.png');
   pass('dashboard-history-reflects-real-persisted-jobs');
   await ui.click('[data-action="takeover"]');
   await until(
