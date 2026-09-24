@@ -9,7 +9,6 @@
 
 <p align="center">
   <a href="https://github.com/tttaliesin/codex-image-web-gpt/releases/latest"><img src="https://img.shields.io/github/v/release/tttaliesin/codex-image-web-gpt?label=release&color=2ea44f" alt="최신 릴리스"></a>
-  <a href="https://github.com/tttaliesin/codex-image-web-gpt/releases"><img src="https://img.shields.io/github/downloads/tttaliesin/codex-image-web-gpt/total?color=blue" alt="다운로드 수"></a>
   <img src="https://img.shields.io/badge/platform-Windows%2011%20x64-0078D4" alt="Windows 11 x64">
   <img src="https://img.shields.io/badge/MCP-local%20HTTP-6f42c1" alt="로컬 MCP">
   <img src="https://img.shields.io/badge/UI-%ED%95%9C%EA%B5%AD%EC%96%B4%20%C2%B7%20English-555" alt="한국어 · English">
