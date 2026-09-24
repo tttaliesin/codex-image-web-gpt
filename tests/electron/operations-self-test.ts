@@ -36,10 +36,12 @@ export async function operationsSelfTest(
     await writeFile(path.join(profile, name), (await window.webContents.capturePage()).toPNG());
   };
   // Public README screenshots show a registered Codex connection; the fixture never registers one.
-  const readmeCapture = async (name: string) => {
+  // Each is captured in Korean and English; only the page switches, the saved choice stays.
+  const readmeCapture = async (name: string, language = 'ko') => {
     await until(
       () =>
-        ui.evaluate<boolean>(`!refreshing && (refreshing = true, render({...latest, setup_guide: false,
+        ui.evaluate<boolean>(`!refreshing && (refreshing = true, render({...latest,
+          language: '${language}', setup_guide: false,
           setup: latest.setup && {...latest.setup, registered: true, checked: true}}), true)`),
       Boolean,
       3000,
@@ -155,6 +157,7 @@ export async function operationsSelfTest(
   await navigate('workspace');
   pass('dashboard-hidden-window-keeps-web-page-rendered');
   await readmeCapture('readme-workspace.png');
+  await readmeCapture('readme-workspace-en.png', 'en');
   await ui.click('[data-action="pause-queue"]');
   await until(async () => service.engine.paused, Boolean, 3000);
   for (let i = 0; i < 2; i++)
@@ -196,6 +199,7 @@ export async function operationsSelfTest(
   assert.equal(await ui.evaluate(`document.querySelectorAll('.job-row').length`), 2);
   await capture('queue.png');
   await readmeCapture('readme-queue.png');
+  await readmeCapture('readme-queue-en.png', 'en');
   pass('dashboard-history-reflects-real-persisted-jobs');
   await ui.click('[data-action="takeover"]');
   await until(
