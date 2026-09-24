@@ -2,6 +2,7 @@
   "name": "web-image-bridge",
   "version": "0.3.7",
   "private": true,
+  "license": "MIT",
   "type": "commonjs",
   "main": "dist/apps/desktop/src/entry.js",
   "files": [
@@ -14,7 +15,10 @@
     "scripts/lib/installation.cjs",
     "scripts/lib/codex-config.cjs",
     "scripts/lib/desktop-setup.cjs",
-    "scripts/windows"
+    "scripts/windows",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "licenses"
   ],
   "packageManager": "pnpm@11.19.0",
   "engines": {
