@@ -758,6 +758,24 @@ h2 {
   line-height: 1.7;
   margin: 14px 0 8px;
 }
+.setup-language {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 8px;
+  color: var(--secondary);
+  font-size: 12px;
+}
+.language-switch {
+  display: inline-flex;
+  gap: 6px;
+}
+.language-switch .button[aria-pressed='true'] {
+  background: #eee;
+  border-color: #eee;
+  color: #171717;
+  font-weight: 600;
+}
 .setup-step {
   display: flex;
   align-items: center;

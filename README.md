@@ -14,6 +14,8 @@
   <a href="#development">개발 안내</a>
 </p>
 
+<p align="center"><a href="README.en.md">English</a> · <strong>한국어</strong></p>
+
 ![Web Image Bridge 작업 공간 — 요청 수신 상태, ChatGPT 연결, 생성 단계와 최근 작업을 보여 주는 데스크톱 화면](assets/readme/workspace.png)
 
 <p align="center"><sub>Windows 11 x64 · 전용 로그인 세션 · 로컬 MCP · 트레이 상주</sub></p>
@@ -67,6 +69,8 @@ ZIP에 실행에 필요한 런타임 포함 — 터미널 명령·Node·pnpm·mi
 
 ![앱 시작 안내 — 폴더 선택, ChatGPT 로그인, Codex 연결을 한 화면에서 진행하는 로컬 테스트 화면](assets/readme/setup.png)
 
+시작 안내 상단에서 **한국어** 또는 **English** 먼저 선택, 이후 **설정**에서 변경 가능
+
 1. **저장 폴더 선택** — 생성한 원본을 저장할 위치 선택, 참고 이미지를 쓸 경우 **입력 폴더 추가**
 2. **로그인 페이지 열기** — 앱 안의 ChatGPT에서 로그인, 이미 로그인되어 있으면 그대로 사용
 3. **Codex에 연결** — 앱 설치·연결 설정·이미지 스킬 등록·로컬 연결 검사를 한 번에 실행
@@ -96,6 +100,8 @@ Web Image Bridge로 흰 배경 위의 작은 도자기 화병을 그려줘.
 **폴더 변경:** 앱의 **설정**에서 입력 폴더 추가·제거와 저장 폴더 변경
 
 진행 중이거나 대기 중인 작업이 없을 때 즉시 적용
+
+**언어:** 앱의 **설정 → 언어**에서 한국어·English 전환, 앱 화면·트레이 메뉴·확인 창이 함께 변경
 
 **업데이트:** 트레이에서 기존 앱을 종료하고 새 ZIP의 `WebImageBridge.exe` 실행 후 **앱 업데이트** 클릭
 
