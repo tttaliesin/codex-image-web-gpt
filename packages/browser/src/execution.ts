@@ -33,7 +33,7 @@ interface Options {
   fixtureEntry?: string;
 }
 export class BrowserExecution implements ExecutionPort {
-  readonly version = 'm3-execution-0.1';
+  readonly version = 'm3-execution-0.2';
   busy = false;
   private auth: ContractTypes['status_data']['profile']['auth_state'] = 'unknown';
   private authAt: string | null = null;
@@ -217,9 +217,23 @@ export class BrowserExecution implements ExecutionPort {
       } else {
         // A submitted job may only return to its saved conversation, never to a new root.
         const evidence = context.attempt()?.evidence;
-        const location =
+        let location =
           state.conversation_url ??
           (evidence ? this.pageUrl(evidence.conversation_url) : undefined);
+        if (!location) {
+          // A crash or changed selector may precede saving the redirected URL.
+          // Recover only from the already-open page with exact submission evidence.
+          const existing = await this.adapter.snapshot();
+          const baseline = context.attempt()?.baseline as Snapshot | undefined;
+          if (
+            baseline &&
+            this.adapter.findSubmission(existing, baseline, record.request.prompt, names)
+          ) {
+            location = existing.url;
+            state.conversation_url = location;
+            await save();
+          }
+        }
         if (!location) throw new Fault('SUBMISSION_UNKNOWN', 'reconcile');
         await this.navigate(location, context);
       }
@@ -332,6 +346,16 @@ export class BrowserExecution implements ExecutionPort {
         }
       }
       const code = error instanceof Fault ? error.code : (error as Error)?.message;
+      if (process.argv.includes('--diagnostics')) {
+        console.error('EXECUTION_DIAGNOSTIC', {
+          name: (error as Error)?.name,
+          code: /^[A-Z_]+$/.test(code ?? '') ? code : 'OTHER',
+          frames: ((error as Error)?.stack ?? '')
+            .split('\n')
+            .slice(1, 5)
+            .map((line) => /at ([\w.]+) /.exec(line)?.[1] ?? 'anonymous'),
+        });
+      }
       if (code === 'SUBMISSION_UNKNOWN' || code === 'SESSION_CHANGED') {
         this.options.attention('SUBMISSION_UNKNOWN');
         throw new Fault('SUBMISSION_UNKNOWN', 'reconcile');
@@ -357,7 +381,7 @@ export class BrowserExecution implements ExecutionPort {
         },
         GENERATION_REJECTED: {
           code: 'GENERATION_REJECTED',
-          message: 'The page reports generation rejection.',
+          message: 'The page explicitly reports generation rejection or failure.',
           retryable: false,
           next_action: 'fix_input',
         },

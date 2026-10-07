@@ -622,6 +622,11 @@ async function start() {
   await window.loadFile(path.join(root, 'apps/desktop/ui/index.html'));
   if (!testing) show();
   let startUrl = fixture?.origin ?? 'https://chatgpt.com/';
+  const recoveryUrl = argument('--recover-conversation-url');
+  if (recoveryUrl && process.argv.includes('--diagnostics')) {
+    if (!conversationUrl(recoveryUrl)) throw Error('STATE_CONFLICT');
+    startUrl = recoveryUrl;
+  }
   if (request && !fixtureMode) {
     const saved = await readJson<ProbeRecord>(
       path.join(profile, 'probes', request.id, 'probe.json'),
@@ -772,6 +777,9 @@ async function start() {
       execution: webExecution,
       operations,
       diagnostics: process.argv.includes('--diagnostics'),
+      captureDiagnostic: process.argv.includes('--diagnostic-screenshot')
+        ? async () => (await view.webContents.capturePage()).toPNG()
+        : undefined,
       busy: isBusy,
       phase: () => phase,
       status,

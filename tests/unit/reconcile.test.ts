@@ -8,6 +8,75 @@ import type { Cdp } from '../../packages/browser/src/cdp';
 import type { DownloadCollector } from '../../packages/browser/src/download';
 import { durableJson, readJson } from '../../packages/storage/src/files';
 
+test('hidden filenames require an exact ordered preflight manifest and unique submission', () => {
+  const adapter = new PageAdapter({} as Cdp, fixtureSelectors);
+  const baseline: Snapshot = {
+    url: 'https://chatgpt.com/',
+    composer: 1,
+    prompt: 'exact\n\nprompt',
+    attachments: ['first.png', 'second.png'],
+    uploading: false,
+    busy: false,
+    send: 1,
+    messages: [],
+    login: false,
+    challenge: false,
+  };
+  const message = {
+    id: 'unique-message',
+    role: 'user',
+    text: baseline.prompt,
+    attachments: ['사용자 첨부 파일', '사용자 첨부 파일'],
+    attachmentNamesHidden: true,
+    downloads: 0,
+    images: 2,
+  };
+  const sent: Snapshot = {
+    ...baseline,
+    url: 'https://chatgpt.com/c/existing',
+    prompt: '',
+    attachments: [],
+    messages: [message],
+  };
+  const names = baseline.attachments;
+  assert.equal(adapter.findSubmission(sent, baseline, baseline.prompt, names), message);
+  assert.equal(
+    adapter.findSubmission(
+      sent,
+      { ...baseline, attachments: [...names].reverse() },
+      baseline.prompt,
+      names,
+    ),
+    undefined,
+  );
+  assert.equal(
+    adapter.findSubmission(sent, { ...baseline, uploading: true }, baseline.prompt, names),
+    undefined,
+  );
+  assert.equal(
+    adapter.findSubmission(
+      { ...sent, messages: [message, { ...message, id: 'another' }] },
+      baseline,
+      baseline.prompt,
+      names,
+    ),
+    undefined,
+  );
+  assert.equal(
+    adapter.findSubmission({ ...sent, prompt: baseline.prompt }, baseline, baseline.prompt, names),
+    undefined,
+  );
+  assert.equal(
+    adapter.findSubmission(
+      { ...sent, messages: [{ ...message, attachments: [message.attachments[0]!] }] },
+      baseline,
+      baseline.prompt,
+      names,
+    ),
+    undefined,
+  );
+});
+
 test('reconcile preserves the confirmed conversation and message identity', async () => {
   await mkdir('.local/tests', { recursive: true });
   const root = await mkdtemp(path.resolve('.local/tests/reconcile-'));

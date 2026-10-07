@@ -4,6 +4,11 @@ import { readFile, copyFile, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import type { BrowserWindow, WebContentsView, Tray } from 'electron';
 import { Cdp } from '../../packages/browser/src/cdp';
+import {
+  PageAdapter,
+  fixtureSelectors,
+  chatgptSelectors,
+} from '../../packages/browser/src/adapter';
 import { ProbeRunner, type ProbeRequest, type ProbeRecord } from '../../apps/desktop/src/probe';
 import { durableJson, readJson } from '../../packages/storage/src/files';
 import type { fixtureServer } from '../fixtures/server';
@@ -60,6 +65,130 @@ export async function selfTest(context: {
     cdp.connect();
     assert.equal(await cdp.evaluate('1+1'), 2);
     pass('cdp-detach-reconnect-hidden');
+    const rich = new PageAdapter(
+      cdp,
+      { ...fixtureSelectors, composer: '#rich-editor', send: '#rich-send' },
+      fixture.origin,
+    );
+    await cdp.evaluate(`(() => {
+      const e = document.createElement('div'); e.id = 'rich-editor';
+      e.contentEditable = 'true'; e.innerHTML = '<p><br></p>'; document.body.append(e);
+    })()`);
+    assert.equal((await rich.snapshot()).prompt, '');
+    await cdp.evaluate(
+      `document.querySelector('#rich-editor').innerHTML = '<p>첫 줄  공백</p><p><br></p><p>다음<br>줄</p>'`,
+    );
+    assert.equal((await rich.snapshot()).prompt, '첫 줄  공백\n\n다음\n줄');
+    await cdp.evaluate(`(() => {
+      const button = document.createElement('button'); button.id = 'rich-send';
+      button.type = 'button'; button.onclick = () => { button.dataset.clicked = 'true'; };
+      document.body.append(button);
+    })()`);
+    await rich.clickSend(await rich.snapshot());
+    assert.equal(
+      await cdp.evaluate(`document.querySelector('#rich-send').dataset.clicked`),
+      'true',
+    );
+    await cdp.evaluate(`document.querySelector('#rich-send').remove()`);
+    await cdp.evaluate(`document.querySelector('#rich-editor').textContent = '일반 텍스트'`);
+    assert.equal((await rich.snapshot()).prompt, '일반 텍스트');
+    await cdp.evaluate(`document.querySelector('#rich-editor').remove()`);
+    pass('rich-editor-empty-and-multiline-prompt-preserved');
+    const modern = new PageAdapter(cdp, chatgptSelectors, fixture.origin);
+    await cdp.evaluate(`(() => {
+      const root = document.createElement('div'); root.id = 'modern-fixture';
+      root.innerHTML = '<div id="prompt-textarea" contenteditable="true"><p><br></p></div>' +
+        '<div class="group/user-message" data-chatgpt-search-message-ids="11111111-1111-4111-8111-111111111111" data-chatgpt-search-unit-key="fallback-turn-0:0:user"><div class="whitespace-pre-wrap">exact prompt</div><img alt="사용자 첨부 파일" src="/output.png?output=1"></div>' +
+        '<div data-chatgpt-search-message-ids="22222222-2222-4222-8222-222222222222"><div data-testid="generated-image-gallery"><button data-testid="generated-image-preview"><img alt="생성된 이미지 1" src="/output.png?output=1"></button><button aria-label="생성된 이미지 1 편집"></button><button aria-label="생성된 이미지 1 공유"></button></div></div>';
+      document.body.append(root);
+      const stale = root.cloneNode(true); stale.id = 'stale-modern-fixture';
+      stale.style.display = 'none'; document.body.append(stale);
+      root.querySelector('[data-testid="generated-image-preview"]').onclick = () => {
+        const viewer = document.createElement('div'); viewer.id = 'modern-viewer';
+        viewer.innerHTML = '<header><button aria-label="다운로드"></button><button aria-label="뷰어 닫기"></button></header><div><img class="ZoomableImage-fixture" alt="fixture" src="/output.png?output=1"></div>';
+        document.body.append(viewer);
+        viewer.querySelector('[aria-label="뷰어 닫기"]').onclick = () => viewer.remove();
+        viewer.querySelector('[aria-label="다운로드"]').onclick = async () => {
+          const bytes = await (await fetch('/output.png?output=1')).blob();
+          const url = URL.createObjectURL(bytes); const link = document.createElement('a');
+          link.href = url; link.download = 'fixture.png'; link.click(); URL.revokeObjectURL(url);
+        };
+      };
+    })()`);
+    let modernSnapshot;
+    for (let i = 0; i < 100; i++) {
+      modernSnapshot = await modern.snapshot();
+      if (modernSnapshot.messages.at(-1)?.outputReady) break;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    assert.deepEqual(
+      modernSnapshot!.messages.map((m) => [m.id, m.role]),
+      [
+        ['11111111-1111-4111-8111-111111111111', 'user'],
+        ['22222222-2222-4222-8222-222222222222', 'assistant'],
+      ],
+    );
+    assert.equal(modernSnapshot!.composer, 1);
+    assert.equal(modernSnapshot!.messages[0]!.attachmentNamesHidden, true);
+    assert.equal(modernSnapshot!.messages[1]!.outputReady, true);
+    assert.equal(modernSnapshot!.messages[1]!.outputCount, 1);
+    await cdp.evaluate(`(() => {
+      const failure=document.createElement('div'); failure.id='modern-failure';
+      failure.setAttribute('data-chatgpt-search-message-ids','33333333-3333-4333-8333-333333333333');
+      failure.innerHTML='<span><svg></svg>이미지 생성에 실패했습니다</span>'; document.body.append(failure);
+    })()`);
+    assert.equal((await modern.snapshot()).serviceError, 'GENERATION_REJECTED');
+    await cdp.evaluate(`document.querySelector('#modern-failure').style.display='none'`);
+    assert.equal((await modern.snapshot()).serviceError, undefined);
+    await cdp.evaluate(`(() => {
+      const failure = document.querySelector('#modern-failure');
+      failure.style.display = '';
+      document.body.insertBefore(failure, document.querySelector('#modern-fixture'));
+    })()`);
+    assert.equal((await modern.snapshot()).serviceError, undefined);
+    assert.equal(
+      (await modern.generation(modernSnapshot!.messages[0]!.id, modernSnapshot!.url, 1000)).id,
+      modernSnapshot!.messages[1]!.id,
+    );
+    await cdp.evaluate(`document.querySelector('#modern-failure').remove()`);
+    await cdp.evaluate(`(() => {
+      const frame=document.createElement('div'); frame.id='modern-refusal';
+      frame.innerHTML='<div class="group/user-message" data-chatgpt-search-message-ids="55555555-5555-4555-8555-555555555555"><span>fixture user</span></div><div><div><div data-chatgpt-search-message-ids="44444444-4444-4444-8444-444444444444 44444444-4444-4444-8444-444444444444"><span>해당 프롬프트가 나체, 성적 또는 성애적 콘텐츠와 관련된 방지 조치를 위반할 수 있습니다.</span></div></div></div><button aria-label="복사"></button>';
+      document.body.append(frame);
+    })()`);
+    const refused = await modern.snapshot();
+    assert.equal(refused.serviceError, 'GENERATION_REJECTED');
+    assert.equal(refused.messages.at(-1)!.id, '44444444-4444-4444-8444-444444444444');
+    assert.equal(refused.messages.at(-1)!.role, 'assistant');
+    assert.equal(refused.messages.at(-1)!.completed, true);
+    await cdp.evaluate(
+      `document.body.insertBefore(document.querySelector('#modern-refusal'), document.querySelector('#modern-fixture'))`,
+    );
+    assert.equal((await modern.snapshot()).serviceError, undefined);
+    assert.equal(
+      (await modern.generation(modernSnapshot!.messages[0]!.id, modernSnapshot!.url, 1000)).id,
+      modernSnapshot!.messages[1]!.id,
+    );
+    await cdp.evaluate(`document.querySelector('#modern-refusal').remove()`);
+    pass('historical-failure-and-refusal-do-not-block-current-generation');
+    const modernId = modernSnapshot!.messages[1]!.id;
+    const modernTarget = await modern.downloadTarget(modernId);
+    const modernArtifact = await runner.downloads.collect(
+      path.join(profile, 'modern-viewer-download'),
+      modernId,
+      modernTarget,
+      () => modern.download(modernId, modernTarget, modernSnapshot!.url),
+    );
+    assert.equal(
+      modernArtifact.sha256,
+      createHash('sha256')
+        .update(await readFile(fixture.images[2]!))
+        .digest('hex'),
+    );
+    await modern.dismissViewer(modernId);
+    await cdp.evaluate(`document.querySelector('#modern-fixture').remove()`);
+    await cdp.evaluate(`document.querySelector('#stale-modern-fixture').remove()`);
+    pass('modern-message-identity-gallery-and-fullscreen-original-download');
     await cookies.set({
       url: fixture.origin,
       name: 'fixture-persistent',

@@ -29,10 +29,39 @@ export class Cdp {
     });
   }
   async files(selector: string, paths: string[]) {
-    const { root } = await this.send('DOM.getDocument');
-    const { nodeIds } = await this.send('DOM.querySelectorAll', { nodeId: root.nodeId, selector });
-    if (nodeIds.length !== 1) throw new Error('UI_CHANGED');
-    await this.send('DOM.setFileInputFiles', { nodeId: nodeIds[0], files: paths });
+    const reply = await this.send('Runtime.evaluate', {
+      expression: `(() => { const nodes = [...document.querySelectorAll(${JSON.stringify(selector)})].filter(e=>e.parentElement?.checkVisibility({checkVisibilityCSS:true})); if (nodes.length !== 1) throw Error(); return nodes[0]; })()`,
+      returnByValue: false,
+    });
+    const objectId = reply.result?.objectId;
+    if (reply.exceptionDetails || !objectId) throw new Error('UI_CHANGED');
+    try {
+      await this.send('Runtime.callFunctionOn', {
+        objectId,
+        functionDeclaration: `function() {
+          this.__bridgeFileCapture = () => { this.__bridgeReceivedNames = [...this.files].map(file => file.name); };
+          this.addEventListener('change', this.__bridgeFileCapture, {capture: true});
+        }`,
+      });
+      await this.send('DOM.setFileInputFiles', { objectId, files: paths });
+      const observed = await this.send('Runtime.callFunctionOn', {
+        objectId,
+        functionDeclaration:
+          'function() { return this.__bridgeReceivedNames ?? [...this.files].map(file => file.name); }',
+        returnByValue: true,
+      });
+      if (observed.exceptionDetails) throw new Error('UI_CHANGED');
+      return observed.result.value as string[];
+    } finally {
+      await this.send('Runtime.callFunctionOn', {
+        objectId,
+        functionDeclaration: `function() {
+          this.removeEventListener('change', this.__bridgeFileCapture, {capture: true});
+          delete this.__bridgeFileCapture; delete this.__bridgeReceivedNames;
+        }`,
+      }).catch(() => {});
+      await this.send('Runtime.releaseObject', { objectId }).catch(() => {});
+    }
   }
   async click(selector: string) {
     await this.evaluate(`(() => {
